@@ -1,0 +1,28 @@
+from pydantic import BaseModel, Field
+from typing import List, Optional
+import uuid
+
+
+class Item(BaseModel):
+    sku: str
+    qty: int
+
+
+class OrderRequest(BaseModel):
+    customer: str
+    items: List[Item]
+
+
+class OrderResponse(BaseModel):
+    order_id: str
+    status: str
+
+
+class OrderStatusResponse(BaseModel):
+    order_id: str
+    status: str
+    last_update: Optional[str] = None
+
+
+def generate_order_id() -> str:
+    return str(uuid.uuid4())
