@@ -164,9 +164,7 @@ distributed-orders/
 docker compose up --build
 
 # Crear una orden
-curl -X POST http://localhost:8000/orders \
-  -H "Content-Type: application/json" \
-  -d '{"customer": "Berny", "items": [{"sku": "A1", "qty": 2}]}'
+curl.exe -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{\"customer\": \"Berny\", \"items\": [{\"sku\": \"A1\", \"qty\": 2}]}'
 
 # Consultar estado (usar el order_id devuelto)
 curl http://localhost:8000/orders/<order_id>
