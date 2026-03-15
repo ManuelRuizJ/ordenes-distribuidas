@@ -1,3 +1,4 @@
+from app.rabbitmq import publish_order_created
 from fastapi import FastAPI, Request, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
@@ -59,6 +60,7 @@ async def internal_create_order(
                 "status": "PERSISTED",
                 "last_update": str(time.time())
             })
+            await publish_order_created(order.dict())
             logger.info("Orden %s marcada como PERSISTED en Redis", order.order_id)
         else:
             # Ya existía, pero igual actualizamos last_update (opcional)
