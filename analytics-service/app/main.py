@@ -10,12 +10,10 @@ logger = logging.getLogger(__name__)
 async def process_order(message: aio_pika.IncomingMessage):
     async with message.process():
         order_data = json.loads(message.body.decode())
-        # Personaliza este mensaje según el servicio
-        logger.info(f"Descontando stock para orden: {order_data['order_id']}")
-        # Aquí iría la lógica real (inventario, métrica, notificación)
+        logger.info(f"Registrando métrica para orden: {order_data['order_id']}")
+        # Aquí iría la lógica real de analytics
 
 async def main():
-    # Bucle infinito con reintentos
     while True:
         try:
             connection = await aio_pika.connect_robust(settings.rabbitmq_url)
@@ -26,7 +24,7 @@ async def main():
                 await queue.bind(exchange)
                 await queue.consume(process_order)
                 logger.info("Esperando mensajes...")
-                await asyncio.Future()  # Mantiene vivo
+                await asyncio.Future()
         except (aio_pika.exceptions.AMQPConnectionError, ConnectionError) as e:
             logger.error(f"Error de conexión: {e}. Reintentando en 5 segundos...")
             await asyncio.sleep(5)
