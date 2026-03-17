@@ -64,6 +64,8 @@ services:
   inventory-service:
     build: ./inventory-service
     restart: unless-stopped
+    ports:
+      - "8002:8002"
     env_file: .env
     depends_on:
       rabbitmq:
@@ -72,6 +74,8 @@ services:
   analytics-service:
     build: ./analytics-service
     restart: unless-stopped
+    ports:
+      - "8003:8003"
     env_file: .env
     depends_on:
       rabbitmq:
@@ -80,6 +84,8 @@ services:
   notification-service:
     build: ./notification-service
     restart: unless-stopped
+    ports:
+      - "8004:8004"
     env_file: .env
     depends_on:
       rabbitmq:
