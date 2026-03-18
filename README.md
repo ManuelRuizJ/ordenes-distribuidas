@@ -168,6 +168,15 @@ curl.exe -X POST http://localhost:8000/orders -H "Content-Type: application/json
 
 # Consultar estado (usar el order_id devuelto)
 curl http://localhost:8000/orders/<order_id>
+
+# Stock inventory
+curl http://localhost:8002/stock
+
+# Metricas analytics
+curl http://localhost:8003/metrics
+
+# Notificaciones
+curl http://localhost:8004/notifications
 ```
 
 ## Variables de entorno
