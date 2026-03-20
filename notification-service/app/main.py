@@ -1,4 +1,5 @@
 import asyncio
+from email.mime import message
 import threading
 from fastapi import FastAPI
 import uvicorn
@@ -75,8 +76,8 @@ async def send_email(order_data: dict):
     message["From"] = settings.email_from
     message["To"] = settings.email_to
     message["Subject"] = f"Nueva orden: {order_data['order_id']}"
-    message.set_content(f"ID: {order_data['order_id']}\nCliente: {order_data['customer']}\nArtículos: {', '.join([f'{item['sku']} (x{item['qty']})' for item in order_data['items']])}")
-
+    items_text = ', '.join([f"{item['sku']} (x{item['qty']})" for item in order_data['items']])
+    message.set_content(f"ID: {order_data['order_id']}\nCliente: {order_data['customer']}\nArtículos: {items_text}")
     message.add_alternative(html_body, subtype="html")
 
     try:

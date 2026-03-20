@@ -1,4 +1,3 @@
-# writer-service/app/seeder.py
 import logging
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +6,7 @@ logger = logging.getLogger(__name__)
 
 async def seed_products(session: AsyncSession):
     try:
+        # Verificar si la tabla existe
         result = await session.execute(text("SELECT COUNT(*) FROM products"))
         count = result.scalar_one()
         if count == 0:
@@ -43,5 +43,5 @@ async def seed_products(session: AsyncSession):
         else:
             logger.info("Productos ya existen, se omite seed.")
     except Exception as e:
-        logger.error(f"Error en seeder: {e}")
-        raise
+        logger.error(f"Error en seeder: {e}", exc_info=True)
+        # No relanzamos la excepción para que el servicio pueda seguir iniciando

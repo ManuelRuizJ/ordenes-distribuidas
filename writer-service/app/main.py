@@ -29,15 +29,11 @@ async def add_request_id(request: Request, call_next):
 
 
 @app.on_event("startup")
-@app.on_event("startup")
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
     async with AsyncSessionLocal() as session:
-        await seed_products(session)
-    # Crear tablas si no existen (¡esto está repetido!)
-    async with engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.create_all)
+        await seed_products(session)  # Esto debe loguear "Productos iniciales cargados"
 
 
 @app.on_event("shutdown")

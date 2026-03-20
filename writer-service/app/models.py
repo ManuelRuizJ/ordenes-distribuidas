@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, CheckConstraint
+from sqlalchemy import Column, String, Integer, CheckConstraint, JSON, DateTime, func
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
