@@ -68,8 +68,7 @@ services:
       - "8002:8002"
     env_file: .env
     depends_on:
-    rabbitmq:
-      condition: service_healthy
+      - rabbitmq
 
   analytics-service:
     build: ./analytics-service
@@ -78,8 +77,7 @@ services:
       - "8003:8003"
     env_file: .env
     depends_on:
-      rabbitmq:
-        condition: service_healthy
+      - rabbitmq
 
   notification-service:
     build: ./notification-service
@@ -88,8 +86,7 @@ services:
       - "8004:8004"
     env_file: .env
     depends_on:
-      rabbitmq:
-        condition: service_healthy
-
+      - rabbitmq
+      
 volumes:
   pg_data:

@@ -12,13 +12,13 @@ from app.config import settings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Configuración SMTP desde variables de entorno (deben estar en .env)
-SMTP_HOST = getattr(settings, "smtp_host", "smtp.gmail.com")
-SMTP_PORT = getattr(settings, "smtp_port", 587)
-SMTP_USER = getattr(settings, "smtp_user", "")
-SMTP_PASSWORD = getattr(settings, "smtp_password", "")
-EMAIL_FROM = getattr(settings, "email_from", "")
-EMAIL_TO = getattr(settings, "email_to", "")
+# Configuración SMTP desde variables de entorno
+SMTP_HOST = settings.smtp_host
+SMTP_PORT = settings.smtp_port
+SMTP_USER = settings.smtp_user
+SMTP_PASSWORD = settings.smtp_password
+EMAIL_FROM = settings.email_from
+EMAIL_TO = settings.email_to
 
 app = FastAPI(title="Notification Service")
 

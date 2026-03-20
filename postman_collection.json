@@ -1,0 +1,80 @@
+{
+  "info": {
+    "name": "Ordenes Distribuidas",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Crear Orden",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "http://localhost:8000/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customer\": \"Juan Pérez\",\n  \"items\": [\n    {\"sku\": \"A1\", \"qty\": 2},\n    {\"sku\": \"B2\", \"qty\": 1}\n  ]\n}"
+        }
+      }
+    },
+    {
+      "name": "Consultar Orden",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8000/orders/{{order_id}}"
+      }
+    },
+    {
+      "name": "Ver Stock (Inventory)",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8002/stock"
+      }
+    },
+    {
+      "name": "Ver Métricas (Analytics)",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8003/metrics"
+      }
+    },
+    {
+      "name": "Ver Notificaciones (Notification)",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8004/notifications"
+      }
+    },
+    {
+      "name": "Health Check Inventory",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8002/health"
+      }
+    },
+    {
+      "name": "Health Check Analytics",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8003/health"
+      }
+    },
+    {
+      "name": "Health Check Notification",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8004/health"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "order_id",
+      "value": ""
+    }
+  ]
+}
