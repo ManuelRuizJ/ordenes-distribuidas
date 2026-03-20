@@ -2,3 +2,5 @@ fastapi>=0.111,<1
 uvicorn[standard]>=0.29,<1
 aio-pika>=9.0.0
 pydantic-settings>=2.0.0
+sqlalchemy[asyncio]>=2,<3
+asyncpg>=0.29,<1

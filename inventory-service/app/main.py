@@ -1,27 +1,28 @@
 import asyncio
 import threading
+import time
+import logging
 from fastapi import FastAPI
 import uvicorn
 import aio_pika
 import json
-import logging
+from sqlalchemy import select, update
 from app.config import settings
+from app.db import AsyncSessionLocal
+from app.models import Product
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Simulación de stock en memoria
-stock = {
-    "A1": 100,
-    "B2": 50,
-    "C3": 75
-}
-
 app = FastAPI(title="Inventory Service")
 
+# (Opcional) Endpoint para consultar stock
 @app.get("/stock")
 async def get_stock():
-    return stock
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(Product))
+        products = result.scalars().all()
+        return {p.sku: p.stock for p in products}
 
 @app.get("/health")
 async def health():
@@ -32,15 +33,30 @@ async def process_order(message: aio_pika.IncomingMessage):
         order_data = json.loads(message.body.decode())
         order_id = order_data['order_id']
         items = order_data['items']
-        logger.info(f"Procesando orden {order_id} para descontar stock")
-        for item in items:
-            sku = item['sku']
-            qty = item['qty']
-            if sku in stock and stock[sku] >= qty:
-                stock[sku] -= qty
-                logger.info(f"  ✅ SKU {sku}: nuevo stock = {stock[sku]}")
-            else:
-                logger.warning(f"  ❌ SKU {sku}: stock insuficiente (disponible: {stock.get(sku, 0)})")
+        logger.info(f"Procesando inventario para orden {order_id}")
+
+        async with AsyncSessionLocal() as session:
+            async with session.begin():
+                for item in items:
+                    sku = item['sku']
+                    qty = item['qty']
+                    # Obtener producto con lock
+                    result = await session.execute(
+                        select(Product).where(Product.sku == sku).with_for_update()
+                    )
+                    product = result.scalar_one_or_none()
+                    if product is None:
+                        logger.error(f"SKU {sku} no encontrado")
+                        # Podrías publicar un evento de error aquí
+                        continue
+                    if product.stock < qty:
+                        logger.error(f"Stock insuficiente para SKU {sku}: disponible {product.stock}, requerido {qty}")
+                        continue
+                    product.stock -= qty
+                    logger.info(f"SKU {sku}: nuevo stock = {product.stock}")
+
+        # Aquí podrías publicar un evento de procesamiento exitoso (opcional)
+        logger.info(f"Inventario actualizado para orden {order_id}")
 
 async def rabbitmq_consumer():
     while True:
@@ -48,9 +64,9 @@ async def rabbitmq_consumer():
             connection = await aio_pika.connect_robust(settings.rabbitmq_url)
             async with connection:
                 channel = await connection.channel()
-                exchange = await channel.declare_exchange("orders", aio_pika.ExchangeType.FANOUT)
-                queue = await channel.declare_queue(exclusive=True)
-                await queue.bind(exchange)
+                exchange = await channel.declare_exchange("orders", aio_pika.ExchangeType.TOPIC, durable=True)
+                queue = await channel.declare_queue("inventory.order.created", durable=True)
+                await queue.bind(exchange, routing_key="order.created")
                 await queue.consume(process_order)
                 logger.info("Esperando mensajes...")
                 await asyncio.Future()
@@ -66,9 +82,10 @@ def start_consumer():
 
 @app.on_event("startup")
 async def startup_event():
+    # Iniciar consumidor en segundo plano
     thread = threading.Thread(target=start_consumer, daemon=True)
     thread.start()
-    logger.info("Consumidor de RabbitMQ iniciado en segundo plano")
+    logger.info("Consumidor de RabbitMQ iniciado")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8002)

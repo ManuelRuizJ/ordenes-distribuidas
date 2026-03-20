@@ -8,17 +8,12 @@ import logging
 import aiosmtplib
 from email.message import EmailMessage
 from app.config import settings
+from app.db import AsyncSessionLocal
+from sqlalchemy import select
+from app.models import Product  # necesitas definir este modelo
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Configuración SMTP desde variables de entorno
-SMTP_HOST = settings.smtp_host
-SMTP_PORT = settings.smtp_port
-SMTP_USER = settings.smtp_user
-SMTP_PASSWORD = settings.smtp_password
-EMAIL_FROM = settings.email_from
-EMAIL_TO = settings.email_to
 
 app = FastAPI(title="Notification Service")
 
@@ -33,38 +28,71 @@ async def get_notifications():
 async def health():
     return {"status": "ok", "service": "notification"}
 
+async def get_product_names(skus: list[str]) -> dict[str, str]:
+    if not skus:
+        return {}
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(Product.sku, Product.name).where(Product.sku.in_(skus))
+        )
+        rows = result.all()
+    return {sku: name for sku, name in rows}
+
 async def send_email(order_data: dict):
     """Envía un correo con los detalles de la orden."""
-    if not all([SMTP_HOST, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM, EMAIL_TO]):
+    if not all([settings.smtp_host, settings.smtp_user, settings.smtp_password, settings.email_from, settings.email_to]):
         logger.warning("Configuración de correo incompleta, no se enviará email")
         return
-    message = EmailMessage()
-    message["From"] = EMAIL_FROM
-    message["To"] = EMAIL_TO
-    message["Subject"] = f"Nueva orden recibida: {order_data['order_id']}"
-    body = f"""
-    Se ha creado una nueva orden:
-    ID: {order_data['order_id']}
-    Cliente: {order_data['customer']}
-    Artículos:
-    {', '.join([f"{item['sku']} (x{item['qty']})" for item in order_data['items']])}
+
+    # Obtener nombres de productos
+    skus = [item['sku'] for item in order_data['items']]
+    product_names = await get_product_names(skus)
+
+    # Construir el cuerpo del mensaje en HTML
+    items_html = ""
+    for item in order_data['items']:
+        sku = item['sku']
+        qty = item['qty']
+        name = product_names.get(sku, sku)  # si no hay nombre, usar SKU
+        items_html += f"<li>{name} (SKU: {sku}) - Cantidad: {qty}</li>"
+
+    html_body = f"""
+    <html>
+        <body>
+            <h2>Nueva orden recibida</h2>
+            <p><strong>ID de orden:</strong> {order_data['order_id']}</p>
+            <p><strong>Cliente:</strong> {order_data['customer']}</p>
+            <p><strong>Artículos:</strong></p>
+            <ul>
+                {items_html}
+            </ul>
+            <p>Gracias por su compra.</p>
+        </body>
+    </html>
     """
-    message.set_content(body)
+
+    message = EmailMessage()
+    message["From"] = settings.email_from
+    message["To"] = settings.email_to
+    message["Subject"] = f"Nueva orden: {order_data['order_id']}"
+    message.set_content(f"ID: {order_data['order_id']}\nCliente: {order_data['customer']}\nArtículos: {', '.join([f'{item['sku']} (x{item['qty']})' for item in order_data['items']])}")
+
+    message.add_alternative(html_body, subtype="html")
+
     try:
         await aiosmtplib.send(
             message,
-            hostname=SMTP_HOST,
-            port=SMTP_PORT,
-            username=SMTP_USER,
-            password=SMTP_PASSWORD,
+            hostname=settings.smtp_host,
+            port=settings.smtp_port,
+            username=settings.smtp_user,
+            password=settings.smtp_password,
             use_tls=False,
             start_tls=True
         )
         logger.info(f"Correo enviado para orden {order_data['order_id']}")
-        # Guardar en historial
         notifications_sent.append({
             "order_id": order_data['order_id'],
-            "to": EMAIL_TO,
+            "to": settings.email_to,
             "timestamp": asyncio.get_event_loop().time()
         })
     except Exception as e:
@@ -82,9 +110,9 @@ async def rabbitmq_consumer():
             connection = await aio_pika.connect_robust(settings.rabbitmq_url)
             async with connection:
                 channel = await connection.channel()
-                exchange = await channel.declare_exchange("orders", aio_pika.ExchangeType.FANOUT)
-                queue = await channel.declare_queue(exclusive=True)
-                await queue.bind(exchange)
+                exchange = await channel.declare_exchange("orders", aio_pika.ExchangeType.TOPIC, durable=True)
+                queue = await channel.declare_queue("notification.order.created", durable=True)
+                await queue.bind(exchange, routing_key="order.created")
                 await queue.consume(process_order)
                 logger.info("Esperando mensajes...")
                 await asyncio.Future()
