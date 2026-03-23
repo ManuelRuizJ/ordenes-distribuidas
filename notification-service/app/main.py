@@ -1,5 +1,4 @@
 import asyncio
-from email.mime import message
 import threading
 from fastapi import FastAPI
 import uvicorn
@@ -9,9 +8,9 @@ import logging
 import aiosmtplib
 from email.message import EmailMessage
 from app.config import settings
-from app.db import AsyncSessionLocal
+from app.db import AsyncSessionLocal_main
 from sqlalchemy import select
-from app.models import Product  # necesitas definir este modelo
+from app.models import Product
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,7 +31,7 @@ async def health():
 async def get_product_names(skus: list[str]) -> dict[str, str]:
     if not skus:
         return {}
-    async with AsyncSessionLocal() as session:
+    async with AsyncSessionLocal_main() as session:
         result = await session.execute(
             select(Product.sku, Product.name).where(Product.sku.in_(skus))
         )
@@ -45,16 +44,14 @@ async def send_email(order_data: dict):
         logger.warning("Configuración de correo incompleta, no se enviará email")
         return
 
-    # Obtener nombres de productos
     skus = [item['sku'] for item in order_data['items']]
     product_names = await get_product_names(skus)
 
-    # Construir el cuerpo del mensaje en HTML
     items_html = ""
     for item in order_data['items']:
         sku = item['sku']
         qty = item['qty']
-        name = product_names.get(sku, sku)  # si no hay nombre, usar SKU
+        name = product_names.get(sku, sku)
         items_html += f"<li>{name} (SKU: {sku}) - Cantidad: {qty}</li>"
 
     html_body = f"""

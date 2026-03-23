@@ -164,7 +164,7 @@ distributed-orders/
 docker compose up --build
 
 # Crear una orden
-curl.exe -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{\"customer\": \"Berny\", \"items\": [{\"sku\": \"A1\", \"qty\": 2}]}'
+curl -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{\"customer\": \"Berny\", \"items\": [{\"sku\": \"A1\", \"qty\": 2}]}'
 
 # Consultar estado (usar el order_id devuelto)
 curl http://localhost:8000/orders/<order_id>
@@ -190,8 +190,6 @@ Definidas en `.env` y compartidas vía `docker-compose.yml`:
 
 ```bash
 docker compose up -d   
-
-
 # crea una orden
 curl -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{"customer": "Jose", "items": [{"sku": "TEC004", "qty": 4}]}'
 

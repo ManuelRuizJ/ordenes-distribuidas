@@ -1,4 +1,3 @@
-version: "3.9"
 
 services:
   postgres:
@@ -12,10 +11,24 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
       interval: 5s
       retries: 5
 
+  postgres-notification:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${NOTIFICATIONS_DB_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${NOTIFICATIONS_DB_NAME}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_notification_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NOTIFICATIONS_DB_USER} -d ${NOTIFICATIONS_DB_NAME}"]
+      interval: 5s
+      retries: 5
 
 
   redis:
@@ -90,6 +103,8 @@ services:
     env_file: .env
     depends_on:
       - rabbitmq
+      - postgres-notification
       
 volumes:
   pg_data:
+  pg_notification_data:

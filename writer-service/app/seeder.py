@@ -22,8 +22,8 @@ async def seed_products(session: AsyncSession):
                 ('IMP008', 'Impresora', 5)
             """))
             await session.commit()
-            logger.info("✅ Productos en español cargados correctamente.")
+            logger.info("Productos en español cargados correctamente.")
         else:
-            logger.info("ℹ️ Los productos ya existen, no se insertaron de nuevo.")
+            logger.info("Los productos ya existen, no se insertaron de nuevo.")
     except Exception as e:
-        logger.error(f"❌ Error en seeder: {e}", exc_info=True)
+        logger.error(f"Error en seeder: {e}", exc_info=True)
