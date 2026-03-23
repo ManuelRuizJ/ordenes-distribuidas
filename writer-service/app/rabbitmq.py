@@ -2,6 +2,7 @@ from asyncio.log import logger
 import json
 import aio_pika
 from app.config import settings
+import time
 
 async def get_rabbitmq_connection():
     return await aio_pika.connect_robust(settings.rabbitmq_url)
