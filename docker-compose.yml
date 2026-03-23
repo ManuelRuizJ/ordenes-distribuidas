@@ -72,12 +72,13 @@ services:
 
   analytics-service:
     build: ./analytics-service
-    restart: unless-stopped
     ports:
       - "8003:8003"
     env_file: .env
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
 
   notification-service:
     build: ./notification-service

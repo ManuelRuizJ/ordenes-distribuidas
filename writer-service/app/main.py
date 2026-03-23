@@ -33,7 +33,7 @@ async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
     async with AsyncSessionLocal() as session:
-        await seed_products(session)  # Esto debe loguear "Productos iniciales cargados"
+        await seed_products(session)
 
 
 @app.on_event("shutdown")

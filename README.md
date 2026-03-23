@@ -184,3 +184,27 @@ Definidas en `.env` y compartidas vía `docker-compose.yml`:
 | `WRITER_SERVICE_URL`     | `http://writer-service:8001`                                           |
 | `WRITER_TIMEOUT_SECONDS` | `1.0`                                                                  |
 | `WRITER_MAX_RETRIES`     | `1`                                                                    |
+
+
+
+
+```bash
+docker compose up -d   
+
+
+# crea una orden
+curl -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{"customer": "Jose", "items": [{"sku": "TEC004", "qty": 4}]}'
+
+# estado de la orden
+curl http://localhost:8000/orders/<id>
+
+# Consultar stock
+curl http://localhost:8002/stock
+
+# Ver notifaciones enviadas
+curl http://localhost:8004/notifications
+
+# Ver metricas
+curl http://localhost:8003/analytics
+
+'''
