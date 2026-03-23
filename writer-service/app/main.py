@@ -8,7 +8,7 @@ from app import models
 from app.db import engine, get_db, AsyncSessionLocal
 from app.redis_client import redis_client
 from app.schemas import InternalOrder
-from app.repositories.orders_repo import upsert_order
+from app.repositories.orders_repo import upsert_order, validate_and_lock_stock
 from app.seeder import seed_products
 
 logging.basicConfig(level=logging.INFO)
@@ -53,11 +53,29 @@ async def internal_create_order(
 
     redis_key = f"order:{order.order_id}"
 
+    # Validar stock primero
+    items_dict = [{"sku": item.sku, "qty": item.qty} for item in order.items]
+    stock_ok, errors = await validate_and_lock_stock(db, items_dict)
+
+    if not stock_ok:
+        # Stock insuficiente o SKU no existe → marcar como FAILED con razón
+        error_msg = "; ".join(errors)
+        logger.info(f"VALIDACIÓN FALLIDA. Guardando error_reason: {error_msg}")   
+        await redis_client.hset(redis_key, mapping={
+            "status": "FAILED",
+            "last_update": str(time.time()),
+            "error_reason": error_msg
+        })
+        logger.warning("Orden %s rechazada: %s", order.order_id, error_msg)
+        # Aún respondemos 201 para que el gateway no intente reintentar,
+        # pero el estado en Redis ya es FAILED.
+        return {"status": "failed", "order_id": order.order_id, "reason": error_msg}
+
+    # Stock OK: continuar con la persistencia
     try:
         inserted = await upsert_order(db, order)
 
         if inserted:
-            # Actualizar Redis a PERSISTED
             await redis_client.hset(redis_key, mapping={
                 "status": "PERSISTED",
                 "last_update": str(time.time())
@@ -65,7 +83,6 @@ async def internal_create_order(
             await publish_order_created(order.dict())
             logger.info("Orden %s marcada como PERSISTED en Redis", order.order_id)
         else:
-            # Ya existía, pero igual actualizamos last_update (opcional)
             await redis_client.hset(redis_key, "last_update", str(time.time()))
             logger.info("Orden %s ya existía, se actualizó last_update", order.order_id)
 
@@ -73,9 +90,9 @@ async def internal_create_order(
 
     except Exception as e:
         logger.error("Error persistendo orden %s: %s", order.order_id, e)
-        # Marcar como fallido en Redis
         await redis_client.hset(redis_key, mapping={
             "status": "FAILED",
-            "last_update": str(time.time())
+            "last_update": str(time.time()),
+            "error_reason": str(e)
         })
         raise HTTPException(status_code=500, detail="Internal server error")
