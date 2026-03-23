@@ -40,8 +40,8 @@ async def validate_and_lock_stock(session: AsyncSession, items: list[dict]) -> t
         result = await session.execute(stmt)
         product = result.scalar_one_or_none()
         if product is None:
-            logger.warning(f"SKU {sku} NO EXISTE")
-            errors.append(f"SKU '{sku}' no existe")
+            logger.warning(f"SKU {sku} NO EXISTENTE")
+            errors.append(f"SKU '{sku}' no existente")
         elif product.stock < qty:
             logger.warning(f"Stock insuficiente para {sku}: {product.stock} < {qty}")
             errors.append(f"SKU '{sku}' stock insuficiente (disponible: {product.stock}, solicitado: {qty})")
