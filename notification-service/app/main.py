@@ -10,7 +10,7 @@ from email.message import EmailMessage
 from app.config import settings
 from app.db import AsyncSessionLocal_main
 from sqlalchemy import select
-from app.models import Product
+from app.models import Product, Notification
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -38,45 +38,159 @@ async def get_product_names(skus: list[str]) -> dict[str, str]:
         rows = result.all()
     return {sku: name for sku, name in rows}
 
-async def send_email(order_data: dict):
-    """Envía un correo con los detalles de la orden."""
-    if not all([settings.smtp_host, settings.smtp_user, settings.smtp_password, settings.email_from, settings.email_to]):
-        logger.warning("Configuración de correo incompleta, no se enviará email")
-        return
-
-    skus = [item['sku'] for item in order_data['items']]
-    product_names = await get_product_names(skus)
-
+def generate_html(title: str, customer: str, items: list, is_error: bool = False, reason: str = None) -> str:
+    header_color = "#e53935" if is_error else "#2e7d32"
+    bg_color = "#f8f9fa"
+    
+    # Construcción de la tabla de productos
     items_html = ""
-    for item in order_data['items']:
-        sku = item['sku']
-        qty = item['qty']
-        name = product_names.get(sku, sku)
-        items_html += f"<li>{name} (SKU: {sku}) - Cantidad: {qty}</li>"
-
-    html_body = f"""
+    if items:
+        items_html = f"""
+        <div style="margin-top: 25px;">
+            <h3 style="color: #333; font-size: 18px; border-bottom: 2px solid #eee; padding-bottom: 8px;">Resumen de la Orden</h3>
+            <table style="width:100%; border-collapse: collapse; margin-top: 10px; font-size: 16px;">
+                <thead>
+                    <tr style="background-color: #f2f2f2; text-align: left;">
+                        <th style="padding: 12px; border: 1px solid #ddd;">Producto</th>
+                        <th style="padding: 12px; border: 1px solid #ddd; text-align: center;">Cant.</th>
+                    </tr>
+                </thead>
+                <tbody>
+        """
+        for item in items:
+            items_html += f"""
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #ddd; color: #555;">
+                        <strong style="color: #000;">{item['name']}</strong><br>
+                        <span style="font-size: 13px; color: #888;">SKU: {item['sku']}</span>
+                    </td>
+                    <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: bold;">{item['qty']}</td>
+                </tr>
+            """
+        items_html += "</tbody></table></div>"
+    
+    # Sección de motivo si es error
+    reason_html = ""
+    if reason:
+        reason_html = f"""
+        <div style="margin-top: 20px; padding: 15px; background-color: #fff3f3; border-left: 5px solid #e53935;">
+            <p style="margin: 0; color: #b71c1c; font-size: 16px;"><strong>Motivo del rechazo:</strong> {reason}</p>
+        </div>
+        """
+    
+    return f"""
+    <!DOCTYPE html>
     <html>
-        <body>
-            <h2>Nueva orden recibida</h2>
-            <p><strong>ID de orden:</strong> {order_data['order_id']}</p>
-            <p><strong>Cliente:</strong> {order_data['customer']}</p>
-            <p><strong>Artículos:</strong></p>
-            <ul>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: {bg_color}; margin: 0; padding: 40px 20px; line-height: 1.6;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            
+            <div style="background-color: {header_color}; color: white; padding: 30px 20px; text-align: center;">
+                <h1 style="margin: 0; font-size: 28px; letter-spacing: 1px;">{title}</h1>
+            </div>
+            
+            <div style="padding: 30px; color: #333;">
+                <p style="font-size: 20px; margin-bottom: 20px;">Hola, <strong>{customer}</strong></p>
+                
+                <p style="font-size: 16px; color: #666;">
+                    {"Lamentamos informarle que su pedido no pudo ser procesado." if is_error else "¡Buenas noticias! Hemos recibido su pedido correctamente y está siendo procesado."}
+                </p>
+
+                {reason_html}
                 {items_html}
-            </ul>
-            <p>Gracias por su compra.</p>
-        </body>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+                    <p style="font-size: 18px; font-weight: bold; color: {header_color};">Gracias por confiar en nosotros.</p>
+                </div>
+            </div>
+            
+            <div style="background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 13px; color: #999;">
+                <p style="margin: 0;">Este es un correo automático, por favor no responda a este mensaje.</p>
+                <p style="margin: 5px 0 0;">© 2024 Notification Service</p>
+            </div>
+        </div>
+    </body>
     </html>
     """
 
+async def send_order_confirmation(order_data: dict):
+    # Obtener nombres de productos
+    skus = [item['sku'] for item in order_data['items']]
+    product_names = await get_product_names(skus)
+    
+    items_with_names = []
+    for item in order_data['items']:
+        items_with_names.append({
+            "sku": item['sku'],
+            "name": product_names.get(item['sku'], item['sku']),
+            "qty": item['qty']
+        })
+    
+    html_body = generate_html(
+        title="¡Orden recibida!",
+        customer=order_data['customer'],
+        items=items_with_names,
+        is_error=False
+    )
+    
+    # Texto plano alternativo
+    items_text = ', '.join([f"{item['name']} (x{item['qty']})" for item in items_with_names])
+    plain_body = f"ID: {order_data['order_id']}\nCliente: {order_data['customer']}\nArtículos: {items_text}"
+    
+    await send_email(plain_body, html_body, f"Orden confirmada: {order_data['order_id']}")
+
+async def send_order_rejection(order_data: dict):
+    """Envía correo de rechazo para órdenes fallidas"""
+    reason = order_data.get('reason', 'Motivo no especificado')
+    skus = [item['sku'] for item in order_data['items']]
+    product_names = await get_product_names(skus)
+    
+    items_with_names = []
+    for item in order_data['items']:
+        items_with_names.append({
+            "sku": item['sku'],
+            "name": product_names.get(item['sku'], item['sku']),
+            "qty": item['qty']
+        })
+    
+    html_body = generate_html(
+        title="Orden no procesada",
+        customer=order_data['customer'],
+        items=items_with_names,
+        is_error=True,
+        reason=reason
+    )
+    
+    items_text = ', '.join([f"{item['name']} (x{item['qty']})" for item in items_with_names])
+    plain_body = f"ID: {order_data['order_id']}\nCliente: {order_data['customer']}\nArtículos: {items_text}\nMotivo del rechazo: {reason}"
+    
+    await send_email(plain_body, html_body, f"Orden rechazada: {order_data['order_id']}")
+
+async def send_email(plain_body, html_body, subject, order_id, recipient, is_error=False, reason=None):
+    async with AsyncSessionLocal_notifications() as session:
+        notification = Notification(
+            id=str(uuid.uuid4()),
+            order_id=order_id,
+            recipient=recipient,
+            status="failure" if is_error else "success",
+            reason=reason
+        )
+        session.add(notification)
+        await session.commit()
+    if not all([settings.smtp_host, settings.smtp_user, settings.smtp_password, settings.email_from, settings.email_to]):
+        logger.warning("Configuración de correo incompleta, no se enviará email")
+        return
+    
     message = EmailMessage()
     message["From"] = settings.email_from
     message["To"] = settings.email_to
-    message["Subject"] = f"Nueva orden: {order_data['order_id']}"
-    items_text = ', '.join([f"{item['sku']} (x{item['qty']})" for item in order_data['items']])
-    message.set_content(f"ID: {order_data['order_id']}\nCliente: {order_data['customer']}\nArtículos: {items_text}")
+    message["Subject"] = subject
+    message.set_content(plain_body)
     message.add_alternative(html_body, subtype="html")
-
+    
     try:
         await aiosmtplib.send(
             message,
@@ -87,9 +201,10 @@ async def send_email(order_data: dict):
             use_tls=False,
             start_tls=True
         )
-        logger.info(f"Correo enviado para orden {order_data['order_id']}")
+        logger.info(f"Correo enviado: {subject}")
+        # Guardar en historial
         notifications_sent.append({
-            "order_id": order_data['order_id'],
+            "subject": subject,
             "to": settings.email_to,
             "timestamp": asyncio.get_event_loop().time()
         })
@@ -98,9 +213,16 @@ async def send_email(order_data: dict):
 
 async def process_order(message: aio_pika.IncomingMessage):
     async with message.process():
+        routing_key = message.routing_key
         order_data = json.loads(message.body.decode())
-        logger.info(f"Procesando notificación para orden: {order_data['order_id']}")
-        await send_email(order_data)
+        if routing_key == "order.created":
+            logger.info(f"Procesando confirmación para orden {order_data['order_id']}")
+            await send_order_confirmation(order_data)
+        elif routing_key == "order.error":
+            logger.info(f"Procesando rechazo para orden {order_data['order_id']}: {order_data.get('reason')}")
+            await send_order_rejection(order_data)
+        else:
+            logger.warning(f"Routing key desconocido: {routing_key}")
 
 async def rabbitmq_consumer():
     while True:
@@ -109,8 +231,9 @@ async def rabbitmq_consumer():
             async with connection:
                 channel = await connection.channel()
                 exchange = await channel.declare_exchange("orders", aio_pika.ExchangeType.TOPIC, durable=True)
-                queue = await channel.declare_queue("notification.order.created", durable=True)
+                queue = await channel.declare_queue("notification.order.events", durable=True)
                 await queue.bind(exchange, routing_key="order.created")
+                await queue.bind(exchange, routing_key="order.error")
                 await queue.consume(process_order)
                 logger.info("Esperando mensajes...")
                 await asyncio.Future()

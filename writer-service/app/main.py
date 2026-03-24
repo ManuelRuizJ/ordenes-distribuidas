@@ -1,4 +1,4 @@
-from app.rabbitmq import publish_order_created
+from app.rabbitmq import publish_order_created, publish_order_error
 from fastapi import FastAPI, Request, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
@@ -66,9 +66,9 @@ async def internal_create_order(
             "last_update": str(time.time()),
             "error_reason": error_msg
         })
+        # Publicar evento de error
+        await publish_order_error(order.dict(), error_msg)
         logger.warning("Orden %s rechazada: %s", order.order_id, error_msg)
-        # Aún respondemos 201 para que el gateway no intente reintentar,
-        # pero el estado en Redis ya es FAILED.
         return {"status": "failed", "order_id": order.order_id, "reason": error_msg}
 
     # Stock OK: continuar con la persistencia

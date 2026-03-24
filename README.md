@@ -187,6 +187,16 @@ Definidas en `.env` y compartidas vía `docker-compose.yml`:
 
 
 
+```bash
+docker compose ps
+
+docker exec -it ordenes-distribuidas-postgres-1 psql -U orders_user -d orders_db
+
+docker exec -it ordenes-distribuidas-postgres-notification-1 psql -U notifications_user -d notifications_db
+
+bash'''
+
+
 
 ```bash
 docker compose up -d   
@@ -205,4 +215,5 @@ curl http://localhost:8004/notifications
 # Ver metricas
 curl http://localhost:8003/analytics
 
-'''
+bash'''
+
