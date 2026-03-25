@@ -190,12 +190,25 @@ Definidas en `.env` y compartidas vía `docker-compose.yml`:
 ```bash
 docker compose ps
 
-docker exec -it ordenes-distribuidas-postgres-1 psql -U orders_user -d orders_db
 
-docker exec -it ordenes-distribuidas-postgres-notification-1 psql -U notifications_user -d notifications_db
+# Base principal
+docker exec -it ordenes-distribuidas-postgres-1 psql -U orders_user -d orders_db -c "\dt"
 
+# Base de notificaciones
+docker exec -it ordenes-distribuidas-postgres-notification-1 psql -U notifications_user -d notifications_db -c "\dt"
+
+#volumenes independientes
+docker volume ls | grep ordenes-distribuidas
+
+
+curl -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{"customer": "Ana", "items": [{"sku": "LAP001", "qty": 1}]}'  
+
+curl http://localhost:8000/orders/<id> 
+
+curl -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{"customer": "Carlos", "items": [{"sku": "XYZ999", "qty": 1}]}'
+
+\dt
 bash'''
-
 
 
 ```bash

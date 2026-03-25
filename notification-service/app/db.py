@@ -1,5 +1,8 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from app.config import settings
+from sqlalchemy.orm import declarative_base
+
+Base = declarative_base()
 
 # Engine para la base principal (lectura de productos)
 engine_main = create_async_engine(

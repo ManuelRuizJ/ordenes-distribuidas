@@ -1,14 +1,20 @@
 import asyncio
 import threading
+import uuid
+import logging
 from fastapi import FastAPI
 import uvicorn
 import aio_pika
 import json
-import logging
 import aiosmtplib
 from email.message import EmailMessage
 from app.config import settings
-from app.db import AsyncSessionLocal_main
+from app.db import (
+    AsyncSessionLocal_main,
+    AsyncSessionLocal_notifications,
+    engine_notifications,
+    Base
+)
 from sqlalchemy import select
 from app.models import Product, Notification
 
@@ -17,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Notification Service")
 
-# Historial de notificaciones (opcional)
+# Historial en memoria (opcional)
 notifications_sent = []
 
 @app.get("/notifications")
@@ -41,8 +47,7 @@ async def get_product_names(skus: list[str]) -> dict[str, str]:
 def generate_html(title: str, customer: str, items: list, is_error: bool = False, reason: str = None) -> str:
     header_color = "#e53935" if is_error else "#2e7d32"
     bg_color = "#f8f9fa"
-    
-    # Construcción de la tabla de productos
+
     items_html = ""
     if items:
         items_html = f"""
@@ -68,8 +73,7 @@ def generate_html(title: str, customer: str, items: list, is_error: bool = False
                 </tr>
             """
         items_html += "</tbody></table></div>"
-    
-    # Sección de motivo si es error
+
     reason_html = ""
     if reason:
         reason_html = f"""
@@ -77,7 +81,7 @@ def generate_html(title: str, customer: str, items: list, is_error: bool = False
             <p style="margin: 0; color: #b71c1c; font-size: 16px;"><strong>Motivo del rechazo:</strong> {reason}</p>
         </div>
         """
-    
+
     return f"""
     <!DOCTYPE html>
     <html>
@@ -87,26 +91,20 @@ def generate_html(title: str, customer: str, items: list, is_error: bool = False
     </head>
     <body style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: {bg_color}; margin: 0; padding: 40px 20px; line-height: 1.6;">
         <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-            
             <div style="background-color: {header_color}; color: white; padding: 30px 20px; text-align: center;">
                 <h1 style="margin: 0; font-size: 28px; letter-spacing: 1px;">{title}</h1>
             </div>
-            
             <div style="padding: 30px; color: #333;">
                 <p style="font-size: 20px; margin-bottom: 20px;">Hola, <strong>{customer}</strong></p>
-                
                 <p style="font-size: 16px; color: #666;">
                     {"Lamentamos informarle que su pedido no pudo ser procesado." if is_error else "¡Buenas noticias! Hemos recibido su pedido correctamente y está siendo procesado."}
                 </p>
-
                 {reason_html}
                 {items_html}
-                
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
                     <p style="font-size: 18px; font-weight: bold; color: {header_color};">Gracias por confiar en nosotros.</p>
                 </div>
             </div>
-            
             <div style="background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 13px; color: #999;">
                 <p style="margin: 0;">Este es un correo automático, por favor no responda a este mensaje.</p>
                 <p style="margin: 5px 0 0;">© 2024 Notification Service</p>
@@ -117,10 +115,9 @@ def generate_html(title: str, customer: str, items: list, is_error: bool = False
     """
 
 async def send_order_confirmation(order_data: dict):
-    # Obtener nombres de productos
     skus = [item['sku'] for item in order_data['items']]
     product_names = await get_product_names(skus)
-    
+
     items_with_names = []
     for item in order_data['items']:
         items_with_names.append({
@@ -128,26 +125,30 @@ async def send_order_confirmation(order_data: dict):
             "name": product_names.get(item['sku'], item['sku']),
             "qty": item['qty']
         })
-    
+
     html_body = generate_html(
         title="¡Orden recibida!",
         customer=order_data['customer'],
         items=items_with_names,
         is_error=False
     )
-    
-    # Texto plano alternativo
     items_text = ', '.join([f"{item['name']} (x{item['qty']})" for item in items_with_names])
     plain_body = f"ID: {order_data['order_id']}\nCliente: {order_data['customer']}\nArtículos: {items_text}"
-    
-    await send_email(plain_body, html_body, f"Orden confirmada: {order_data['order_id']}")
+
+    await send_email(
+        plain_body=plain_body,
+        html_body=html_body,
+        subject=f"Orden confirmada: {order_data['order_id']}",
+        order_id=order_data['order_id'],
+        recipient=settings.email_to,
+        is_error=False
+    )
 
 async def send_order_rejection(order_data: dict):
-    """Envía correo de rechazo para órdenes fallidas"""
     reason = order_data.get('reason', 'Motivo no especificado')
     skus = [item['sku'] for item in order_data['items']]
     product_names = await get_product_names(skus)
-    
+
     items_with_names = []
     for item in order_data['items']:
         items_with_names.append({
@@ -155,7 +156,7 @@ async def send_order_rejection(order_data: dict):
             "name": product_names.get(item['sku'], item['sku']),
             "qty": item['qty']
         })
-    
+
     html_body = generate_html(
         title="Orden no procesada",
         customer=order_data['customer'],
@@ -163,13 +164,21 @@ async def send_order_rejection(order_data: dict):
         is_error=True,
         reason=reason
     )
-    
     items_text = ', '.join([f"{item['name']} (x{item['qty']})" for item in items_with_names])
     plain_body = f"ID: {order_data['order_id']}\nCliente: {order_data['customer']}\nArtículos: {items_text}\nMotivo del rechazo: {reason}"
-    
-    await send_email(plain_body, html_body, f"Orden rechazada: {order_data['order_id']}")
 
-async def send_email(plain_body, html_body, subject, order_id, recipient, is_error=False, reason=None):
+    await send_email(
+        plain_body=plain_body,
+        html_body=html_body,
+        subject=f"Orden rechazada: {order_data['order_id']}",
+        order_id=order_data['order_id'],
+        recipient=settings.email_to,
+        is_error=True,
+        reason=reason
+    )
+
+async def send_email(plain_body: str, html_body: str, subject: str, order_id: str, recipient: str, is_error: bool = False, reason: str = None):
+    # Guardar en la base de notificaciones ANTES de enviar (o después, según prefieras)
     async with AsyncSessionLocal_notifications() as session:
         notification = Notification(
             id=str(uuid.uuid4()),
@@ -180,17 +189,18 @@ async def send_email(plain_body, html_body, subject, order_id, recipient, is_err
         )
         session.add(notification)
         await session.commit()
+
     if not all([settings.smtp_host, settings.smtp_user, settings.smtp_password, settings.email_from, settings.email_to]):
         logger.warning("Configuración de correo incompleta, no se enviará email")
         return
-    
+
     message = EmailMessage()
     message["From"] = settings.email_from
     message["To"] = settings.email_to
     message["Subject"] = subject
     message.set_content(plain_body)
     message.add_alternative(html_body, subtype="html")
-    
+
     try:
         await aiosmtplib.send(
             message,
@@ -202,7 +212,7 @@ async def send_email(plain_body, html_body, subject, order_id, recipient, is_err
             start_tls=True
         )
         logger.info(f"Correo enviado: {subject}")
-        # Guardar en historial
+        # Guardar también en memoria (opcional)
         notifications_sent.append({
             "subject": subject,
             "to": settings.email_to,
@@ -249,6 +259,9 @@ def start_consumer():
 
 @app.on_event("startup")
 async def startup_event():
+    # Crear tablas en la base de notificaciones
+    async with engine_notifications.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     thread = threading.Thread(target=start_consumer, daemon=True)
     thread.start()
     logger.info("Consumidor de RabbitMQ iniciado en segundo plano")
