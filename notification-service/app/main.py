@@ -17,11 +17,19 @@ from app.db import (
 )
 from sqlalchemy import select
 from app.models import Product, Notification
+from fastapi.middleware.cors import CORSMiddleware
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Notification Service")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # En desarrollo puedes permitir todos los orígenes
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Historial en memoria (opcional)
 notifications_sent = []

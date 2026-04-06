@@ -5,12 +5,19 @@ import time
 from app.redis_client import redis_client
 from app.schemas import OrderRequest, OrderResponse, OrderStatusResponse, generate_order_id
 from app.services.writer_client import forward_order_to_writer
+from fastapi.middleware.cors import CORSMiddleware
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="API Gateway - Órdenes")
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # En desarrollo puedes permitir todos los orígenes
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.middleware("http")
 async def add_request_id(request: Request, call_next):

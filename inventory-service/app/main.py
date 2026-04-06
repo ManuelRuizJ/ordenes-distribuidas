@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy import select
 from app.config import settings
 from app.models import Base, Product
+from fastapi.middleware.cors import CORSMiddleware
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,6 +18,13 @@ engine = create_async_engine(settings.database_url, echo=True, pool_pre_ping=Tru
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 app = FastAPI(title="Inventory Service")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # En desarrollo puedes permitir todos los orígenes
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/stock")
 async def get_stock():

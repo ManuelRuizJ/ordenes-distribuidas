@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ordenes Distribuidas</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: #f0f2f5;
+            margin: 0;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #1e3c72;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        /* Configuracion de cuadricula 2x2 */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+        }
+        .card h2 {
+            margin: 0 0 20px 0;
+            font-size: 1.4rem;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 10px;
+            color: #2c3e66;
+        }
+        /* Organizacion interna de los elementos */
+        .form-group {
+            margin-bottom: 15px;
+            flex-grow: 1;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.9rem;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            font-size: 1rem;
+            outline: none;
+        }
+        input:focus, select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+        }
+        button {
+            background-color: #2563eb;
+            color: white;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #1d4ed8;
+        }
+        .item-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        .item-row select { flex: 2; }
+        .item-row input { flex: 1; }
+        .item-row .remove-item {
+            width: auto;
+            background-color: #fee2e2;
+            color: #dc2626;
+            padding: 10px 15px;
+            margin-top: 0;
+        }
+        .add-item {
+            background-color: #ecfdf5;
+            color: #059669;
+            border: 1px dashed #10b981;
+            margin-bottom: 10px;
+        }
+        /* Contenedores de datos */
+        .scroll-area {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #f1f5f9;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        .status {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            background: #f8fafc;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        .success { color: #16a34a; }
+        .error { color: #dc2626; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.85rem;
+        }
+        th { background: #f8fafc; color: #64748b; }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }
+        /* Responsive para pantallas pequenas */
+        @media (max-width: 850px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Ordenes Distribuidas</h1>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Nueva orden</h2>
+            <div class="form-group">
+                <label>Nombre del Cliente</label>
+                <input type="text" id="customer" placeholder="Ej: Ana Garcia">
+                
+                <label style="margin-top: 15px;">Seleccion de Productos</label>
+                <div id="items-container">
+                    <div class="item-row">
+                        <select class="sku-select">
+                            <option value="LAP001">Laptop (LAP001)</option>
+                            <option value="SMR002">Smartphone (SMR002)</option>
+                            <option value="MNT003">Monitor (MNT003)</option>
+                            <option value="TEC004">Teclado (TEC004)</option>
+                            <option value="MOU005">Mouse (MOU005)</option>
+                            <option value="AUD006">Auriculares (AUD006)</option>
+                            <option value="TAB007">Tablet (TAB007)</option>
+                            <option value="IMP008">Impresora (IMP008)</option>
+                        </select>
+                        <input type="number" class="qty-input" value="1" min="1">
+                        <button class="remove-item" disabled>X</button>
+                    </div>
+                </div>
+                <button id="add-item" class="add-item">+ Agregar otro producto</button>
+            </div>
+            <button id="create-order">Confirmar y crear orden</button>
+            <div id="create-result" class="status">Listo para recibir datos</div>
+        </div>
+
+        <div class="card">
+            <h2>Estado de orden</h2>
+            <div class="form-group">
+                <label>Identificador de Orden (UUID)</label>
+                <input type="text" id="order-id" placeholder="Ingrese ID para buscar">
+                <button id="check-order">Consultar ahora</button>
+            </div>
+            <div id="order-status" class="status">Ingrese un ID para ver los detalles</div>
+        </div>
+
+        <div class="card">
+            <h2>Inventario actual</h2>
+            <div class="form-group">
+                <div class="scroll-area" id="stock-table">
+                    <p>Cargando datos del almacen...</p>
+                </div>
+            </div>
+            <button id="refresh-stock" style="background-color: #64748b;">Actualizar tabla</button>
+        </div>
+
+        <div class="card">
+            <h2>Ultimas notificaciones</h2>
+            <div class="form-group">
+                <div class="scroll-area" id="notifications-list">
+                    <p>Cargando actividad reciente...</p>
+                </div>
+            </div>
+            <button id="refresh-notifications" style="background-color: #64748b;">Actualizar historial</button>
+        </div>
+    </div>
+
+    <!-- <div class="footer">
+        Servicios activos: Gateway (8000), Inventario (8002), Notificaciones (8004)
+    </div> -->
+</div>
+
+<script>
+    const API_GATEWAY = 'http://localhost:8000';
+    const INVENTORY_URL = 'http://localhost:8002/stock';
+    const NOTIFICATIONS_URL = 'http://localhost:8004/notifications';
+
+    const itemsContainer = document.getElementById('items-container');
+    const addItemBtn = document.getElementById('add-item');
+
+    function addItemRow() {
+        const row = document.createElement('div');
+        row.className = 'item-row';
+        row.innerHTML = `
+            <select class="sku-select">
+                <option value="LAP001">Laptop (LAP001)</option>
+                <option value="SMR002">Smartphone (SMR002)</option>
+                <option value="MNT003">Monitor (MNT003)</option>
+                <option value="TEC004">Teclado (TEC004)</option>
+                <option value="MOU005">Mouse (MOU005)</option>
+                <option value="AUD006">Auriculares (AUD006)</option>
+                <option value="TAB007">Tablet (TAB007)</option>
+                <option value="IMP008">Impresora (IMP008)</option>
+            </select>
+            <input type="number" class="qty-input" value="1" min="1">
+            <button class="remove-item">X</button>
+        `;
+        row.querySelector('.remove-item').addEventListener('click', () => row.remove());
+        itemsContainer.appendChild(row);
+    }
+
+    addItemBtn.addEventListener('click', addItemRow);
+
+    document.getElementById('create-order').addEventListener('click', async () => {
+        const customer = document.getElementById('customer').value.trim();
+        const rows = document.querySelectorAll('.item-row');
+        const items = Array.from(rows).map(row => ({
+            sku: row.querySelector('.sku-select').value,
+            qty: parseInt(row.querySelector('.qty-input').value)
+        }));
+
+        if (!customer) return alert('Nombre de cliente requerido');
+
+        const resultDiv = document.getElementById('create-result');
+        resultDiv.innerHTML = 'Procesando...';
+
+        try {
+            const res = await fetch(`${API_GATEWAY}/orders`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ customer, items })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                resultDiv.innerHTML = `<span class="success">Orden exitosa!</span><br>ID: ${data.order_id}`;
+                refreshStock();
+                refreshNotifications();
+            } else {
+                resultDiv.innerHTML = `<span class="error">Error: ${data.detail || 'Fallo al crear'}</span>`;
+            }
+        } catch (e) {
+            resultDiv.innerHTML = '<span class="error">Error de conexion con el servidor</span>';
+        }
+    });
+
+    document.getElementById('check-order').addEventListener('click', async () => {
+        const id = document.getElementById('order-id').value.trim();
+        const statusDiv = document.getElementById('order-status');
+        if (!id) return;
+        
+        statusDiv.innerHTML = 'Buscando...';
+        try {
+            const res = await fetch(`${API_GATEWAY}/orders/${id}`);
+            const data = await res.json();
+            if (!res.ok) throw new Error();
+            statusDiv.innerHTML = `
+                <strong>Estado:</strong> ${data.status}<br>
+                <strong>Fecha:</strong> ${new Date(data.last_update * 1000).toLocaleString()}
+            `;
+        } catch (e) {
+            statusDiv.innerHTML = '<span class="error">Orden no encontrada</span>';
+        }
+    });
+
+    async function refreshStock() {
+        const div = document.getElementById('stock-table');
+        try {
+            const res = await fetch(INVENTORY_URL);
+            const data = await res.json();
+            let html = '<table><tr><th>Producto</th><th>SKU</th><th>Cant.</th></tr>';
+            data.forEach(p => {
+                html += `<tr><td>${p.name}</td><td>${p.sku}</td><td>${p.stock}</td></tr>`;
+            });
+            div.innerHTML = html + '</table>';
+        } catch (e) {
+            div.innerHTML = 'Error al cargar inventario';
+        }
+    }
+
+    async function refreshNotifications() {
+        const div = document.getElementById('notifications-list');
+        try {
+            const res = await fetch(NOTIFICATIONS_URL);
+            const data = await res.json();
+            let html = '<div style="font-size:0.8rem">';
+            data.recent.forEach(n => {
+                html += `<div style="margin-bottom:8px; border-bottom:1px solid #eee">
+                            <strong>${n.subject}</strong><br>${new Date(n.timestamp * 1000).toLocaleTimeString()}
+                         </div>`;
+            });
+            div.innerHTML = html + '</div>';
+        } catch (e) {
+            div.innerHTML = 'Error al cargar notificaciones';
+        }
+    }
+
+    document.getElementById('refresh-stock').addEventListener('click', refreshStock);
+    document.getElementById('refresh-notifications').addEventListener('click', refreshNotifications);
+
+    // Carga inicial
+    refreshStock();
+    refreshNotifications();
+</script>
+</body>
+</html>
