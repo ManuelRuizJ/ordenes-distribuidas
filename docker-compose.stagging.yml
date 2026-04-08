@@ -5,12 +5,11 @@ services:
     environment:
       LOG_LEVEL: INFO
 
-
   writer-service:
     restart: unless-stopped
 
-  invetory-service:
-    restart: unless-stopped
+  inventory-service:
+     restart: unless-stopped
 
   notification-service:
-    restart: unless-stopped    
+     restart: unless-stopped

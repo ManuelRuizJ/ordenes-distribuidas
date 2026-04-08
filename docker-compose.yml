@@ -27,49 +27,6 @@ services:
       retries: 5
 
 
-  redis:
-    image: redis:7-alpine
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      retries: 5
-
-  api-gateway:
-    build: ./api-gateway
-    env_file: ${ENV_FILE:-.env.dev}
-    depends_on:
-      redis:
-        condition: service_healthy
-      writer-service:
-        condition: service_started
-
-  writer-service:
-    build: ./writer-service
-    env_file: ${ENV_FILE:-.env.dev}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  inventory-service:
-    build: ./inventory-service
-    restart: unless-stopped
-    env_file: ${ENV_FILE:-.env.dev}
-    depends_on:
-      - rabbitmq
-
   analytics-service:
     build: ./analytics-service
     env_file: ${ENV_FILE:-.env.dev}
@@ -78,13 +35,66 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      retries: 5
+    # environment:
+    #   RABBITMQ_DEFAULT_USER: guest
+    #   RABBITMQ_DEFAULT_PASS: guest
+
+  api-gateway:
+    build: ./api-gateway
+    env_file: ${ENV_FILE:-.env.dev}
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      writer-service:
+        condition: service_started
+
+  writer-service:
+    build: ./writer-service
+    env_file: ${ENV_FILE:-.env.dev}
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  inventory-service:
+    build: ./inventory-service
+    env_file: ${ENV_FILE:-.env.dev}
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+
   notification-service:
     build: ./notification-service
     env_file: ${ENV_FILE:-.env.dev}
-    restart: unless-stopped
+    restart: on-failure
     depends_on:
-      - rabbitmq
-      - postgres-notification
+      postgres-notification:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
       
 volumes:
   pg_data:
