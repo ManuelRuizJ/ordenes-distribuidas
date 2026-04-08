@@ -12,3 +12,4 @@ descargas_*/
 # vscode
 .vscode/
 
+.env.*
