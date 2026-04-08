@@ -12,3 +12,9 @@ descargas_*/
 # vscode
 .vscode/
 
+#Enviroment
+.env
+.env.dev
+.env.stagging
+.env.prod
+
