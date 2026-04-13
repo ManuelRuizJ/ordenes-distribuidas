@@ -21,7 +21,7 @@ class OrderResponse(BaseModel):
 class OrderStatusResponse(BaseModel):
     order_id: str
     status: str
-    last_update: Optional[str] = None
+    reason: Optional[str] = None
 
 
 def generate_order_id() -> str:

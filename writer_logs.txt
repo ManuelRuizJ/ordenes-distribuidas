@@ -1,0 +1,57 @@
+writer-service-1  | Traceback (most recent call last):
+writer-service-1  |   File "/usr/local/bin/uvicorn", line 8, in <module>
+writer-service-1  |     sys.exit(main())
+writer-service-1  |              ^^^^^^
+writer-service-1  |   File "/usr/local/lib/python3.11/site-packages/click/core.py", line 1485, in __call__
+writer-service-1  |     return self.main(*args, **kwargs)
+writer-service-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+writer-service-1  |   File "/usr/local/lib/python3.11/site-packages/click/core.py", line 1406, in main
+writer-service-1  |     rv = self.invoke(ctx)
+writer-service-1  |          ^^^^^^^^^^^^^^^^
+writer-service-1  |   File "/usr/local/lib/python3.11/site-packages/click/core.py", line 1269, in invoke
+writer-service-1  |     return ctx.invoke(self.callback, **ctx.params)
+writer-service-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+writer-service-1  |   File "/usr/local/lib/python3.11/site-packages/click/core.py", line 824, in invoke
+writer-service-1  |     return callback(*args, **kwargs)
+writer-service-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+writer-service-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/main.py", line 433, in main
+writer-service-1  |     run(
+writer-service-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/main.py", line 606, in run
+writer-service-1  |     server.run()
+writer-service-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/server.py", line 75, in run
+writer-service-1  |     return asyncio_run(self.serve(sockets=sockets), loop_factory=self.config.get_loop_factory())
+writer-service-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+writer-service-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/_compat.py", line 30, in asyncio_run
+writer-service-1  |     return runner.run(main)
+writer-service-1  |            ^^^^^^^^^^^^^^^^
+writer-service-1  |   File "/usr/local/lib/python3.11/asyncio/runners.py", line 118, in run
+writer-service-1  |     return self._loop.run_until_complete(task)
+writer-service-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+writer-service-1  |   File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+writer-service-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/server.py", line 79, in serve
+writer-service-1  |     await self._serve(sockets)
+writer-service-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/server.py", line 86, in _serve
+writer-service-1  |     config.load()
+writer-service-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/config.py", line 441, in load
+writer-service-1  |     self.loaded_app = import_from_string(self.app)
+writer-service-1  |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+writer-service-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/importer.py", line 19, in import_from_string
+writer-service-1  |     module = importlib.import_module(module_str)
+writer-service-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+writer-service-1  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+writer-service-1  |     return _bootstrap._gcd_import(name[level:], package, level)
+writer-service-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+writer-service-1  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+writer-service-1  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+writer-service-1  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+writer-service-1  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+writer-service-1  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+writer-service-1  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+writer-service-1  |   File "/app/app/main.py", line 10, in <module>
+writer-service-1  |     from app.schemas import InternalOrder
+writer-service-1  |   File "/app/app/schemas.py", line 16, in <module>
+writer-service-1  |     class OrderStatusResponse(BaseModel):
+writer-service-1  |   File "/app/app/schemas.py", line 19, in OrderStatusResponse
+writer-service-1  |     last_update: Optional[str] = None
+writer-service-1  |                  ^^^^^^^^
+writer-service-1  | NameError: name 'Optional' is not defined

@@ -164,7 +164,7 @@ distributed-orders/
 docker compose up --build
 
 # Crear una orden
-curl.exe -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{\"customer\": \"Berny\", \"items\": [{\"sku\": \"A1\", \"qty\": 2}]}'
+curl -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{\"customer\": \"Berny\", \"items\": [{\"sku\": \"A1\", \"qty\": 2}]}'
 
 # Consultar estado (usar el order_id devuelto)
 curl http://localhost:8000/orders/<order_id>
@@ -184,3 +184,49 @@ Definidas en `.env` y compartidas vía `docker-compose.yml`:
 | `WRITER_SERVICE_URL`     | `http://writer-service:8001`                                           |
 | `WRITER_TIMEOUT_SECONDS` | `1.0`                                                                  |
 | `WRITER_MAX_RETRIES`     | `1`                                                                    |
+
+
+
+```bash
+docker compose ps
+
+
+# Base principal
+docker exec -it ordenes-distribuidas-postgres-1 psql -U orders_user -d orders_db -c "\dt"
+
+# Base de notificaciones
+docker exec -it ordenes-distribuidas-postgres-notification-1 psql -U notifications_user -d notifications_db -c "\dt"
+
+#volumenes independientes
+docker volume ls | grep ordenes-distribuidas
+
+
+curl -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{"customer": "Ana", "items": [{"sku": "LAP001", "qty": 1}]}'  
+
+curl http://localhost:8000/orders/<id> 
+
+curl -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{"customer": "Carlos", "items": [{"sku": "XYZ999", "qty": 1}]}'
+
+\dt
+bash'''
+
+
+```bash
+docker compose up -d   
+# crea una orden
+curl -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{"customer": "Jose", "items": [{"sku": "TEC004", "qty": 4}]}'
+
+# estado de la orden
+curl http://localhost:8000/orders/<id>
+
+# Consultar stock
+curl http://localhost:8002/stock
+
+# Ver notifaciones enviadas
+curl http://localhost:8004/notifications
+
+# Ver metricas
+curl http://localhost:8003/analytics
+
+bash'''
+
