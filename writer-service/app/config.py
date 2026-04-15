@@ -20,10 +20,10 @@ from pydantic_settings import BaseSettings
 from pydantic import field_validator, Field
 
 class Settings(BaseSettings):
-    # Lee 'DATABASE_URL' de Railway pero lo guarda como 'database_url'
+    # Usamos Field con validation_alias para mapear MAYÚSCULAS de Railway a minúsculas de tu código
     database_url: str = Field(..., validation_alias="DATABASE_URL")
-    REDIS_URL: str
-    RABBITMQ_URL: str
+    redis_url: str = Field(..., validation_alias="REDIS_URL")
+    rabbitmq_url: str = Field(..., validation_alias="RABBITMQ_URL")
     
     @field_validator("database_url", mode="before")
     @classmethod
