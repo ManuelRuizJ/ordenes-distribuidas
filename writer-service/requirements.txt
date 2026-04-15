@@ -6,3 +6,4 @@ asyncpg>=0.29,<1
 pydantic>=2,<3
 pydantic-settings>=2,<3
 aio-pika>=9.0.0
+asyncpgsa>=0.0.1

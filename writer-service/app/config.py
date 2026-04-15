@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+""" from pydantic_settings import BaseSettings
 from pydantic import Field
 
 
@@ -11,5 +11,27 @@ class Settings(BaseSettings):
         env_file = ".env"
         extra = "ignore"
 
+
+settings = Settings() """
+
+
+
+
+from pydantic_settings import BaseSettings
+from pydantic import field_validator
+
+class Settings(BaseSettings):
+    # Railway te da esta variable como postgresql://
+    DATABASE_URL: str 
+    
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def fix_postgres_protocol(cls, v: str) -> str:
+        if v and v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
+
+    class Config:
+        env_file = ".env"
 
 settings = Settings()
