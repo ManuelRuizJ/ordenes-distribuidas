@@ -30,6 +30,20 @@ services:
       interval: 5s
       retries: 5
 
+  postgres-users:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${AUTH_DB_USER}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
+      POSTGRES_DB: ${AUTH_DB_NAME}
+    ports:
+      - "5434:5432"
+    volumes:
+      - pg_users_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER} -d ${AUTH_DB_NAME}"]
+      interval: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -104,7 +118,20 @@ services:
     depends_on:
       - rabbitmq
       - postgres-notification
-      
+
+  auth_service:
+    build: ./auth-service
+    ports:
+      - "8005:8005"
+    env_file: .env
+    depends_on:
+      postgres-users:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pg_data:
   pg_notification_data:
+  pg_users_data:
