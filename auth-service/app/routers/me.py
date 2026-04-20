@@ -6,7 +6,7 @@ from app.models import User
 from app.schemas import UserResponse
 from app.dependencies import get_current_user_id
 
-router = APIRouter(tags=["authentication"])
+router = APIRouter(tags=["user"])
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(
@@ -21,5 +21,6 @@ async def get_current_user(
         id=user.id,
         username=user.username,
         email=user.email,
-        created_at=user.created_at.isoformat()
+        created_at=user.created_at.isoformat(),
+        role=user.role
     )

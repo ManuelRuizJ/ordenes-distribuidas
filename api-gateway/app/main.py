@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Request, Response, status
+from fastapi import FastAPI, Request, Response, status, Depends, Header, HTTPException
 import logging
 import uuid
 import time
 from app.redis_client import redis_client
 from app.schemas import OrderRequest, OrderResponse, OrderStatusResponse, generate_order_id
 from app.services.writer_client import forward_order_to_writer
+from app.auth_deps import get_current_user_id
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ async def add_request_id(request: Request, call_next):
 
 
 @app.post("/orders", status_code=status.HTTP_202_ACCEPTED, response_model=OrderResponse)
-async def create_order(order: OrderRequest, request: Request):
+async def create_order(order: OrderRequest, request: Request, user_id: str = Depends(get_current_user_id)):
     request_id = request.state.request_id
     order_id = generate_order_id()
     now = time.time()
@@ -79,3 +80,20 @@ async def get_order_status(order_id: str):
 @app.on_event("shutdown")
 async def shutdown():
     await redis_client.close()
+
+async def get_current_user_role(token: str = Header(..., alias="Authorization")) -> tuple[str, str]:
+    # ... validar token y extraer payload
+    user_id = payload.get("sub")
+    role = payload.get("role", "user")
+    return user_id, role
+
+async def require_admin(token: str = Header(..., alias="Authorization")):
+    user_id, role = await get_current_user_role(token)
+    if role != "admin":
+        raise HTTPException(status_code=403, detail="Admin required")
+    return user_id
+
+@app.delete("/orders/{order_id}")
+async def delete_order(order_id: str, admin_id: str = Depends(require_admin)):
+    # lógica para eliminar orden (solo admin)
+    ...

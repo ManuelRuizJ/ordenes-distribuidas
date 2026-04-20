@@ -188,10 +188,15 @@ Definidas en `.env` y compartidas vía `docker-compose.yml`:
 
 
 ```bash
-# 1. Registro de usuario
+# 1.1 Registro de usuario
 curl -X POST http://localhost:8005/auth/signup \
   -H "Content-Type: application/json" \
-  -d '{"username":"ana","email":"ana@example.com","password":"123456"}'
+  -d '{"username":"ana","email":"ana@example.com","password":"123456","role":"user"}'
+
+# 1.2 Registro de admin
+curl -X POST http://localhost:8005/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","email":"admin@example.com","password":"admin123","role":"admin"}'
 
 # 2. Login (guardar tokens)
 curl -X POST http://localhost:8005/auth/login \
@@ -199,24 +204,23 @@ curl -X POST http://localhost:8005/auth/login \
   -d '{"username_or_email":"ana","password":"123456"}'
 
 # 3. Obtener perfil (requiere token)
-TOKEN="eyJhbGciOiJIUzI1NiIs..."
 curl -X GET http://localhost:8005/auth/me \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer TU_ACCESS_TOKEN_AQUI"
 
 # 4. Refrescar token (requiere refresh_token)
-REFRESH="eyJhbGciOiJIUzI1NiIs..."
 curl -X POST http://localhost:8005/auth/refresh \
   -H "Content-Type: application/json" \
-  -d "{\"refresh_token\":\"$REFRESH\"}"
+  -d '{"refresh_token":"TU_REFRESH_TOKEN_AQUI"}'
 
-# 5. Logout (requiere refresh_token)
+# 5. Logout
 curl -X POST http://localhost:8005/auth/logout \
   -H "Content-Type: application/json" \
-  -d "{\"refresh_token\":\"$REFRESH\"}"
+  -d '{"refresh_token":"TU_REFRESH_TOKEN_AQUI"}'
 
 # 6. Crear orden (exitosa)
 curl -X POST http://localhost:8000/orders \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_ACCESS_TOKEN_AQUI" \
   -d '{"customer":"Ana","items":[{"sku":"LAP001","qty":1}]}'
 
 # 7. Consultar estado de orden
@@ -225,11 +229,13 @@ curl http://localhost:8000/orders/ID_DE_LA_ORDEN
 # 8. Crear orden con stock insuficiente
 curl -X POST http://localhost:8000/orders \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_ACCESS_TOKEN_AQUI" \
   -d '{"customer":"Carlos","items":[{"sku":"LAP001","qty":1000}]}'
 
 # 9. Crear orden con SKU inexistente
 curl -X POST http://localhost:8000/orders \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_ACCESS_TOKEN_AQUI" \
   -d '{"customer":"Pedro","items":[{"sku":"XYZ999","qty":1}]}'
 
 # 10. Ver stock
@@ -245,6 +251,22 @@ curl http://localhost:8003/analytics
 curl http://localhost:8002/health
 curl http://localhost:8003/health
 curl http://localhost:8004/health
-curl http://localhost:8005/health  
+curl http://localhost:8005/health
+
+
+
+# _______________Enpoints solo admin__________________
+# Listar usuarios registrados
+curl -X GET http://localhost:8005/auth/admin/users \
+  -H "Authorization: Bearer TU_ACCESS_TOKEN_ADMIN"
+
+# Cambiar rol de usuario por id
+curl -X PUT http://localhost:8005/auth/admin/users/ID_DEL_USUARIO/role \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_ACCESS_TOKEN_ADMIN" \
+  -d '{"new_role":"admin"}'
+
+
+
 bash'''
 

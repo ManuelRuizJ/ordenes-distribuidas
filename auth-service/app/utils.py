@@ -15,8 +15,9 @@ def hash_password(password: str) -> str:
 def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode('utf-8'), hashed.encode('utf-8'))
 
-def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
+def create_access_token(data: dict, role: str, expires_delta: timedelta = None) -> str:
     to_encode = data.copy()
+    to_encode.update({"role": role})
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
@@ -24,8 +25,9 @@ def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
     to_encode.update({"exp": expire, "type": "access"})
     return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
-def create_refresh_token(data: dict) -> str:
+def create_refresh_token(data: dict, role: str) -> str:
     to_encode = data.copy()
+    to_encode.update({"role": role})
     expire = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
     to_encode.update({"exp": expire, "type": "refresh"})
     return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
