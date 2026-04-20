@@ -1,5 +1,15 @@
-from sqlalchemy import Column, String, DateTime, func
+from sqlalchemy import Column, String, DateTime, func, Enum as SQLEnum
 from app.db import Base
+import enum
+
+class UserRole(str, enum.Enum):
+    USER = "user"
+    ADMIN = "admin"
+
+class User(Base):
+    __tablename__ = "users"
+    # ... otros campos
+    role = Column(SQLEnum(UserRole), default=UserRole.USER, nullable=False)
 
 class User(Base):
     __tablename__ = "users"
