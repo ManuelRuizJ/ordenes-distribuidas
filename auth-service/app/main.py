@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import auth
+from app.routers import signup, login, refresh, logout, me
 from app.db import engine, Base
 from app.redis_client import redis_client
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +14,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router)
+app.include_router(signup, prefix="/auth")
+app.include_router(login, prefix="/auth")
+app.include_router(refresh, prefix="/auth")
+app.include_router(logout, prefix="/auth")
+app.include_router(me, prefix="/auth")
 
 @app.on_event("startup")
 async def startup():

@@ -188,45 +188,63 @@ Definidas en `.env` y compartidas vía `docker-compose.yml`:
 
 
 ```bash
-docker compose ps
+# 1. Registro de usuario
+curl -X POST http://localhost:8005/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"username":"ana","email":"ana@example.com","password":"123456"}'
 
+# 2. Login (guardar tokens)
+curl -X POST http://localhost:8005/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username_or_email":"ana","password":"123456"}'
 
-# Base principal
-docker exec -it ordenes-distribuidas-postgres-1 psql -U orders_user -d orders_db -c "\dt"
+# 3. Obtener perfil (requiere token)
+TOKEN="eyJhbGciOiJIUzI1NiIs..."
+curl -X GET http://localhost:8005/auth/me \
+  -H "Authorization: Bearer $TOKEN"
 
-# Base de notificaciones
-docker exec -it ordenes-distribuidas-postgres-notification-1 psql -U notifications_user -d notifications_db -c "\dt"
+# 4. Refrescar token (requiere refresh_token)
+REFRESH="eyJhbGciOiJIUzI1NiIs..."
+curl -X POST http://localhost:8005/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d "{\"refresh_token\":\"$REFRESH\"}"
 
-#volumenes independientes
-docker volume ls | grep ordenes-distribuidas
+# 5. Logout (requiere refresh_token)
+curl -X POST http://localhost:8005/auth/logout \
+  -H "Content-Type: application/json" \
+  -d "{\"refresh_token\":\"$REFRESH\"}"
 
+# 6. Crear orden (exitosa)
+curl -X POST http://localhost:8000/orders \
+  -H "Content-Type: application/json" \
+  -d '{"customer":"Ana","items":[{"sku":"LAP001","qty":1}]}'
 
-curl -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{"customer": "Ana", "items": [{"sku": "LAP001", "qty": 1}]}'  
+# 7. Consultar estado de orden
+curl http://localhost:8000/orders/ID_DE_LA_ORDEN
 
-curl http://localhost:8000/orders/<id> 
+# 8. Crear orden con stock insuficiente
+curl -X POST http://localhost:8000/orders \
+  -H "Content-Type: application/json" \
+  -d '{"customer":"Carlos","items":[{"sku":"LAP001","qty":1000}]}'
 
-curl -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{"customer": "Carlos", "items": [{"sku": "XYZ999", "qty": 1}]}'
+# 9. Crear orden con SKU inexistente
+curl -X POST http://localhost:8000/orders \
+  -H "Content-Type: application/json" \
+  -d '{"customer":"Pedro","items":[{"sku":"XYZ999","qty":1}]}'
 
-\dt
-bash'''
-
-
-```bash
-docker compose up -d   
-# crea una orden
-curl -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{"customer": "Jose", "items": [{"sku": "TEC004", "qty": 4}]}'
-
-# estado de la orden
-curl http://localhost:8000/orders/<id>
-
-# Consultar stock
+# 10. Ver stock
 curl http://localhost:8002/stock
 
-# Ver notifaciones enviadas
+# 11. Ver notificaciones
 curl http://localhost:8004/notifications
 
-# Ver metricas
+# 12. Ver analíticas
 curl http://localhost:8003/analytics
 
+# 13. Health checks
+curl http://localhost:8002/health
+curl http://localhost:8003/health
+curl http://localhost:8004/health
+curl http://localhost:8005/health  
 bash'''
 
