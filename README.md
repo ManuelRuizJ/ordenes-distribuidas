@@ -264,9 +264,7 @@ curl -X GET http://localhost:8005/auth/admin/users \
 curl -X PUT http://localhost:8005/auth/admin/users/ID_DEL_USUARIO/role \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer TU_ACCESS_TOKEN_ADMIN" \
-  -d '{"new_role":"admin"}'
-
-
+  -d '{"new_role":"admin"}' 
 
 bash'''
 
