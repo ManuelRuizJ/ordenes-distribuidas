@@ -8,7 +8,11 @@ __pycache__/
 descargas_*/
 *.pdf
 
+# variables de entorno
+.env
+.env.dev
+.env.prod
+.env.staging
 
 # vscode
-.vscode/
 
