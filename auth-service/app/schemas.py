@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from typing import Optional, List
 from app.models import UserRole
 
 class UserCreate(BaseModel):
@@ -32,3 +32,24 @@ class MessageResponse(BaseModel):
 
 class RoleUpdate(BaseModel):
     new_role: UserRole
+
+""" class OrderResponse(BaseModel):
+    order_id: str
+    status: str """
+
+""" class OrderStatusResponse(BaseModel):
+    order_id: str
+    status: str
+    reason: str | None = None
+    last_update: str | None = None """
+
+class Item(BaseModel):
+    sku: str
+    qty: int
+
+""" class OrderRequest(BaseModel):
+    items: List[Item] """
+
+""" def generate_order_id() -> str:
+    import uuid
+    return str(uuid.uuid4()) """
