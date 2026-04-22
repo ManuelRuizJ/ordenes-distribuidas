@@ -9,7 +9,6 @@ class Item(BaseModel):
 
 
 class OrderRequest(BaseModel):
-    customer: str
     items: List[Item]
 
 
