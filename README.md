@@ -187,46 +187,163 @@ Definidas en `.env` y compartidas vía `docker-compose.yml`:
 
 
 
-```bash
-docker compose ps
+<!-- ```bash
+# 1.1 Registro de usuario
+curl -X POST http://localhost:8005/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"username":"ana","email":"ana@example.com","password":"123456","role":"user"}'
 
+# 1.2 Registro de admin
+curl -X POST http://localhost:8005/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","email":"admin@example.com","password":"admin123","role":"admin"}'
 
-# Base principal
-docker exec -it ordenes-distribuidas-postgres-1 psql -U orders_user -d orders_db -c "\dt"
+# 2. Login (guardar tokens)
+curl -X POST http://localhost:8005/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username_or_email":"ana","password":"123456"}'
 
-# Base de notificaciones
-docker exec -it ordenes-distribuidas-postgres-notification-1 psql -U notifications_user -d notifications_db -c "\dt"
+# 3. Obtener perfil (requiere token)
+curl -X GET http://localhost:8005/auth/me \
+  -H "Authorization: Bearer TU_ACCESS_TOKEN_AQUI"
 
-#volumenes independientes
-docker volume ls | grep ordenes-distribuidas
+# 4. Refrescar token (requiere refresh_token)
+curl -X POST http://localhost:8005/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token":"TU_REFRESH_TOKEN_AQUI"}'
 
+# 5. Logout
+curl -X POST http://localhost:8005/auth/logout \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token":"TU_REFRESH_TOKEN_AQUI"}'
 
-curl -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{"customer": "Ana", "items": [{"sku": "LAP001", "qty": 1}]}'  
+# 6. Crear orden (exitosa)
+curl -X POST http://localhost:8000/orders \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_ACCESS_TOKEN_AQUI" \
+  -d '{"customer":"Ana","items":[{"sku":"LAP001","qty":1}]}'
 
-curl http://localhost:8000/orders/<id> 
+# 7. Consultar estado de orden
+curl http://localhost:8000/orders/ID_DE_LA_ORDEN
 
-curl -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{"customer": "Carlos", "items": [{"sku": "XYZ999", "qty": 1}]}'
+# 8. Crear orden con stock insuficiente
+curl -X POST http://localhost:8000/orders \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_ACCESS_TOKEN_AQUI" \
+  -d '{"customer":"Carlos","items":[{"sku":"LAP001","qty":1000}]}'
 
-\dt
-bash'''
+# 9. Crear orden con SKU inexistente
+curl -X POST http://localhost:8000/orders \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_ACCESS_TOKEN_AQUI" \
+  -d '{"customer":"Pedro","items":[{"sku":"XYZ999","qty":1}]}'
 
-
-```bash
-docker compose up -d   
-# crea una orden
-curl -X POST http://localhost:8000/orders -H "Content-Type: application/json" -d '{"customer": "Jose", "items": [{"sku": "TEC004", "qty": 4}]}'
-
-# estado de la orden
-curl http://localhost:8000/orders/<id>
-
-# Consultar stock
+# 10. Ver stock
 curl http://localhost:8002/stock
 
-# Ver notifaciones enviadas
+# 11. Ver notificaciones
 curl http://localhost:8004/notifications
 
-# Ver metricas
+# 12. Ver analíticas
 curl http://localhost:8003/analytics
 
-bash'''
+# 13. Health checks
+curl http://localhost:8002/health
+curl http://localhost:8003/health
+curl http://localhost:8004/health
+curl http://localhost:8005/health
 
+
+
+# _______________Enpoints solo admin__________________
+# Listar usuarios registrados
+curl -X GET http://localhost:8005/auth/admin/users \
+  -H "Authorization: Bearer TU_ACCESS_TOKEN_ADMIN"
+
+# Cambiar rol de usuario por id
+curl -X PUT http://localhost:8005/auth/admin/users/ID_DEL_USUARIO/role \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_ACCESS_TOKEN_ADMIN" \
+  -d '{"new_role":"admin"}' 
+
+bash''' -->
+
+```bash
+# 1.1 Registro de usuario
+curl -X POST http://localhost:8005/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"username":"usuario","email":"usuario@example.com","password":"123456","role":"user"}'
+
+# 1.2 Registro de admin
+curl -X POST http://localhost:8005/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","email":"admin@example.com","password":"admin123","role":"admin"}'
+
+# 2. Login (guardar tokens)
+curl -X POST http://localhost:8005/auth/login -H "Content-Type: application/json" -d '{"username_or_email":"usuario","password":"123456"}'
+
+# 3. Obtener perfil (requiere token)
+curl -X GET http://localhost:8005/auth/me \
+  -H "Authorization: Bearer ACCESS_TOKEN"
+
+# 4. Refrescar token (requiere refresh_token)
+curl -X POST http://localhost:8005/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token":"REFRESH_TOKEN"}'
+
+# 5. Logout
+curl -X POST http://localhost:8005/auth/logout \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token":"REFRESH_TOKEN"}'
+
+# 6. Crear orden (exitosa)
+curl -X POST http://localhost:8000/orders \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ACCESS_TOKEN" \
+  -d '{"items":[{"sku":"LAP001","qty":1}]}'
+
+# 7. Consultar estado de orden publico
+curl http://localhost:8000/orders/ID_DE_LA_ORDEN
+
+# 8. Crear orden con stock insuficiente
+curl -X POST http://localhost:8000/orders \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ACCESS_TOKEN" \
+  -d '{"customer":"Carlos","items":[{"sku":"LAP001","qty":1000}]}'
+
+# 9. Crear orden con SKU inexistente
+curl -X POST http://localhost:8000/orders \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ACCESS_TOKEN" \
+  -d '{"customer":"Pedro","items":[{"sku":"XYZ999","qty":1}]}'
+
+# 10. Ver stock (Permiso solo admin)
+curl -X GET http://localhost:8000/stock \
+  -H "Authorization: Bearer ACCESS_TOKEN"
+
+# 11. Ver notificaciones (Permiso solo admin)
+curl -X GET http://localhost:8000/notifications \
+  -H "Authorization: Bearer ACCESS_TOKEN"
+
+# 12. Ver analíticas
+curl -X GET http://localhost:8000/notifications \
+  -H "Authorization: Bearer ACCESS_TOKEN"
+
+# 13. Health checks
+curl http://localhost:8002/health
+curl http://localhost:8003/health
+curl http://localhost:8004/health
+curl http://localhost:8005/health
+
+
+# Listar usuarios registrados
+curl -X GET http://localhost:8005/auth/admin/users \
+  -H "Authorization: Bearer ACCESS_TOKEN"
+
+# Cambiar rol de usuario por id
+curl -X PUT http://localhost:8005/auth/admin/users/ID_DEL_USUARIO/role \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ACCESS_TOKEN" \
+  -d '{"new_role":"admin"}'
+
+bash'''
