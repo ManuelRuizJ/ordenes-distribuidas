@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, staging ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -13,10 +13,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        environment: [dev, staging]   # Puedes agregar prod si quieres, pero con cuidado
+        environment: [dev, staging]   # puedes añadir prod si quieres
     env:
       ENV_FILE: .env.${{ matrix.environment }}
-      COMPOSE_FILE: docker-compose.yml:docker-compose.${{ matrix.environment }}.yml
 
     steps:
       - name: Checkout code
@@ -24,11 +23,13 @@ jobs:
 
       - name: Create environment file
         run: |
-          # Para desarrollo, copiamos el archivo existente (ya está en el repo)
           if [ "${{ matrix.environment }}" = "dev" ]; then
-            cp .env.dev .env
-          else
-            # Para staging, creamos el archivo a partir de secrets y plantilla
+            # Usa .env.example para desarrollo (sin secrets)
+            cp .env.example .env.dev
+            # Añade variables específicas de desarrollo (opcional)
+            echo "LOG_LEVEL=DEBUG" >> .env.dev
+          elif [ "${{ matrix.environment }}" = "staging" ]; then
+            # Genera .env.staging a partir de secrets
             cat > .env.staging <<EOF
             POSTGRES_USER=orders_stg
             POSTGRES_PASSWORD=${{ secrets.STAGING_POSTGRES_PASSWORD }}
@@ -47,30 +48,34 @@ jobs:
             EMAIL_TO=jeshua0423@gmail.com
             NOTIFICATIONS_DB_USER=notifications_stg
             NOTIFICATIONS_DB_NAME=notifications_stg_db
-            NOTIFICATIONS_DATABASE_URL=postgresql+asyncpg://notifications_stg:${{ secrets.STAGING_NOTIFICATIONS_PASSWORD }}@postgres-notification:5432/notifications_stg_db
+            NOTIFICATIONS_DATABASE_URL=postgresql+asyncpg://notifications_stg:${{ secrets.STAGING_POSTGRES_PASSWORD }}@postgres-notification:5432/notifications_stg_db
             LOG_LEVEL=INFO
-            JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY_STAGING }}
+            JWT_SECRET_KEY=${{ secrets.STAGING_JWT_SECRET_KEY }}
             JWT_ALGORITHM=HS256
             ACCESS_TOKEN_EXPIRE_MINUTES=30
             REFRESH_TOKEN_EXPIRE_DAYS=2
             AUTH_DB_USER=auth_user
-            AUTH_DB_PASSWORD=${{ secrets.AUTH_DB_PASSWORD_STAGING }}
+            AUTH_DB_PASSWORD=${{ secrets.STAGING_AUTH_DB_PASSWORD }}
             AUTH_DB_NAME=auth_db
-            AUTH_DATABASE_URL=postgresql+asyncpg://auth_user:${{ secrets.AUTH_DB_PASSWORD_STAGING }}@postgres-users:5432/auth_db
+            AUTH_DATABASE_URL=postgresql+asyncpg://auth_user:${{ secrets.STAGING_AUTH_DB_PASSWORD }}@postgres-users:5432/auth_db
             EOF
-            cp .env.staging .env
+          elif [ "${{ matrix.environment }}" = "prod" ]; then
+            # Similar para producción (con secrets PROD_*)
+            cat > .env.prod <<EOF
+            
+            EOF
           fi
+          # Copiar como .env para que docker compose lo use
+          cp .env.${{ matrix.environment }} .env
 
       - name: Build services
-        run: docker compose -f ${{ env.COMPOSE_FILE }} --env-file .env build
+        run: docker compose build
 
       - name: Start services
-        run: docker compose -f ${{ env.COMPOSE_FILE }} --env-file .env up -d
+        run: docker compose up -d
 
-      - name: Wait for services to be ready
-        run: |
-          echo "Esperando 30 segundos para que los servicios inicialicen..."
-          sleep 30
+      - name: Wait for services
+        run: sleep 30
 
       - name: Run integration tests
         run: |
@@ -79,8 +84,8 @@ jobs:
 
       - name: Show logs on failure
         if: failure()
-        run: docker compose -f ${{ env.COMPOSE_FILE }} logs --tail=100
+        run: docker compose logs --tail=100
 
       - name: Cleanup
         if: always()
-        run: docker compose -f ${{ env.COMPOSE_FILE }} down -v
+        run: docker compose down -v
