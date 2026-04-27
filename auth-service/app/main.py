@@ -22,10 +22,12 @@ app.include_router(refresh, prefix="/auth")
 app.include_router(logout, prefix="/auth")
 app.include_router(me, prefix="/auth")
 
+
 @app.on_event("startup")
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
 
 @app.on_event("shutdown")
 async def shutdown():

@@ -1,4 +1,4 @@
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Order, Product
 from app.schemas import InternalOrder
@@ -21,7 +21,7 @@ async def upsert_order(db: AsyncSession, order_data: InternalOrder) -> bool:
     new_order = Order(
         order_id=order_data.order_id,
         customer=order_data.customer,
-        items=[item.dict() for item in order_data.items]
+        items=[item.dict() for item in order_data.items],
     )
     db.add(new_order)
     await db.commit()
@@ -29,12 +29,14 @@ async def upsert_order(db: AsyncSession, order_data: InternalOrder) -> bool:
     return True
 
 
-async def validate_and_lock_stock(session: AsyncSession, items: list[dict]) -> tuple[bool, list[str]]:
+async def validate_and_lock_stock(
+    session: AsyncSession, items: list[dict]
+) -> tuple[bool, list[str]]:
     logger.info(f"=== INICIANDO validación de stock para {len(items)} items ===")
     errors = []
     for item in items:
-        sku = item['sku']
-        qty = item['qty']
+        sku = item["sku"]
+        qty = item["qty"]
         logger.info(f"Validando SKU {sku} cantidad {qty}")
         stmt = select(Product).where(Product.sku == sku).with_for_update()
         result = await session.execute(stmt)
@@ -44,8 +46,12 @@ async def validate_and_lock_stock(session: AsyncSession, items: list[dict]) -> t
             errors.append(f"SKU '{sku}' no existente")
         elif product.stock < qty:
             logger.warning(f"Stock insuficiente para {sku}: {product.stock} < {qty}")
-            errors.append(f"SKU '{sku}' stock insuficiente (disponible: {product.stock}, solicitado: {qty})")
+            errors.append(
+                f"SKU '{sku}' stock insuficiente (disponible: {product.stock}, solicitado: {qty})"
+            )
         else:
             logger.info(f"SKU {sku} OK, stock actual: {product.stock}")
-    logger.info(f"Validación completada. Stock OK? {len(errors)==0}. Errores: {errors}")
+    logger.info(
+        f"Validación completada. Stock OK? {len(errors) == 0}. Errores: {errors}"
+    )
     return len(errors) == 0, errors

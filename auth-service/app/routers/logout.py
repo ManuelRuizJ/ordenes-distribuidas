@@ -6,8 +6,10 @@ from app.redis_client import redis_client
 
 router = APIRouter(tags=["authentication"])
 
+
 async def blacklist_token(token: str, expires_in: int):
     await redis_client.setex(f"blacklist:{token}", expires_in, "1")
+
 
 @router.post("/logout", response_model=MessageResponse)
 async def logout(refresh_data: RefreshRequest):

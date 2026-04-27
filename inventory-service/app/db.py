@@ -4,14 +4,13 @@ from app.config import settings
 engine = create_async_engine(
     settings.database_url,  # Necesitarás agregar DATABASE_URL al .env y a la configuración
     echo=True,
-    pool_pre_ping=True
+    pool_pre_ping=True,
 )
 
 AsyncSessionLocal = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False
+    engine, class_=AsyncSession, expire_on_commit=False
 )
+
 
 async def get_db() -> AsyncSession:
     async with AsyncSessionLocal() as session:

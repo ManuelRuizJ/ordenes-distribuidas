@@ -7,13 +7,15 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  build-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+
     strategy:
       fail-fast: false
       matrix:
         environment: [dev, staging]
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -76,3 +78,9 @@ jobs:
       - name: Cleanup
         if: always()
         run: docker compose down -v
+
+      - name: Linter check
+        run: |
+          echo "Ejecutando linters..."
+          pip install ruff
+          ruff check .

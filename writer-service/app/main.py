@@ -44,12 +44,12 @@ async def shutdown():
 
 @app.post("/internal/orders", status_code=status.HTTP_201_CREATED)
 async def internal_create_order(
-    order: InternalOrder,
-    request: Request,
-    db: AsyncSession = Depends(get_db)
+    order: InternalOrder, request: Request, db: AsyncSession = Depends(get_db)
 ):
     request_id = request.state.request_id
-    logger.info("Solicitud interna para orden %s con request_id=%s", order.order_id, request_id)
+    logger.info(
+        "Solicitud interna para orden %s con request_id=%s", order.order_id, request_id
+    )
 
     redis_key = f"order:{order.order_id}"
 
@@ -60,12 +60,15 @@ async def internal_create_order(
     if not stock_ok:
         # Stock insuficiente o SKU no existe → marcar como FAILED con razón
         error_msg = "; ".join(errors)
-        logger.info(f"VALIDACIÓN FALLIDA. Guardando error_reason: {error_msg}")   
-        await redis_client.hset(redis_key, mapping={
-            "status": "FAILED",
-            "last_update": str(time.time()),
-            "error_reason": error_msg
-        })
+        logger.info(f"VALIDACIÓN FALLIDA. Guardando error_reason: {error_msg}")
+        await redis_client.hset(
+            redis_key,
+            mapping={
+                "status": "FAILED",
+                "last_update": str(time.time()),
+                "error_reason": error_msg,
+            },
+        )
         # Publicar evento de error
         await publish_order_error(order.dict(), error_msg)
         logger.warning("Orden %s rechazada: %s", order.order_id, error_msg)
@@ -76,10 +79,10 @@ async def internal_create_order(
         inserted = await upsert_order(db, order)
 
         if inserted:
-            await redis_client.hset(redis_key, mapping={
-                "status": "PERSISTED",
-                "last_update": str(time.time())
-            })
+            await redis_client.hset(
+                redis_key,
+                mapping={"status": "PERSISTED", "last_update": str(time.time())},
+            )
             await publish_order_created(order.dict())
             logger.info("Orden %s marcada como PERSISTED en Redis", order.order_id)
         else:
@@ -90,9 +93,12 @@ async def internal_create_order(
 
     except Exception as e:
         logger.error("Error persistendo orden %s: %s", order.order_id, e)
-        await redis_client.hset(redis_key, mapping={
-            "status": "FAILED",
-            "last_update": str(time.time()),
-            "error_reason": str(e)
-        })
+        await redis_client.hset(
+            redis_key,
+            mapping={
+                "status": "FAILED",
+                "last_update": str(time.time()),
+                "error_reason": str(e),
+            },
+        )
         raise HTTPException(status_code=500, detail="Internal server error")

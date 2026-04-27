@@ -13,7 +13,7 @@ from app.db import (
     AsyncSessionLocal_main,
     AsyncSessionLocal_notifications,
     engine_notifications,
-    Base
+    Base,
 )
 from sqlalchemy import select
 from app.models import Product, Notification
@@ -26,13 +26,16 @@ app = FastAPI(title="Notification Service")
 # Historial en memoria (opcional)
 notifications_sent = []
 
+
 @app.get("/notifications")
 async def get_notifications():
     return {"total": len(notifications_sent), "recent": notifications_sent[-10:]}
 
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "notification"}
+
 
 async def get_product_names(skus: list[str]) -> dict[str, str]:
     if not skus:
@@ -44,13 +47,16 @@ async def get_product_names(skus: list[str]) -> dict[str, str]:
         rows = result.all()
     return {sku: name for sku, name in rows}
 
-def generate_html(title: str, customer: str, items: list, is_error: bool = False, reason: str = None) -> str:
+
+def generate_html(
+    title: str, customer: str, items: list, is_error: bool = False, reason: str = None
+) -> str:
     header_color = "#e53935" if is_error else "#2e7d32"
     bg_color = "#f8f9fa"
 
     items_html = ""
     if items:
-        items_html = f"""
+        items_html = """
         <div style="margin-top: 25px;">
             <h3 style="color: #333; font-size: 18px; border-bottom: 2px solid #eee; padding-bottom: 8px;">Resumen de la Orden</h3>
             <table style="width:100%; border-collapse: collapse; margin-top: 10px; font-size: 16px;">
@@ -66,10 +72,10 @@ def generate_html(title: str, customer: str, items: list, is_error: bool = False
             items_html += f"""
                 <tr>
                     <td style="padding: 12px; border: 1px solid #ddd; color: #555;">
-                        <strong style="color: #000;">{item['name']}</strong><br>
-                        <span style="font-size: 13px; color: #888;">SKU: {item['sku']}</span>
+                        <strong style="color: #000;">{item["name"]}</strong><br>
+                        <span style="font-size: 13px; color: #888;">SKU: {item["sku"]}</span>
                     </td>
-                    <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: bold;">{item['qty']}</td>
+                    <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: bold;">{item["qty"]}</td>
                 </tr>
             """
         items_html += "</tbody></table></div>"
@@ -114,70 +120,89 @@ def generate_html(title: str, customer: str, items: list, is_error: bool = False
     </html>
     """
 
+
 async def send_order_confirmation(order_data: dict):
-    skus = [item['sku'] for item in order_data['items']]
+    skus = [item["sku"] for item in order_data["items"]]
     product_names = await get_product_names(skus)
 
     items_with_names = []
-    for item in order_data['items']:
-        items_with_names.append({
-            "sku": item['sku'],
-            "name": product_names.get(item['sku'], item['sku']),
-            "qty": item['qty']
-        })
+    for item in order_data["items"]:
+        items_with_names.append(
+            {
+                "sku": item["sku"],
+                "name": product_names.get(item["sku"], item["sku"]),
+                "qty": item["qty"],
+            }
+        )
 
     html_body = generate_html(
         title="¡Orden recibida!",
-        customer=order_data['customer'],
+        customer=order_data["customer"],
         items=items_with_names,
-        is_error=False
+        is_error=False,
     )
-    items_text = ', '.join([f"{item['name']} (x{item['qty']})" for item in items_with_names])
+    items_text = ", ".join(
+        [f"{item['name']} (x{item['qty']})" for item in items_with_names]
+    )
     plain_body = f"ID: {order_data['order_id']}\nCliente: {order_data['customer']}\nArtículos: {items_text}"
 
     await send_email(
         plain_body=plain_body,
         html_body=html_body,
         subject=f"Orden confirmada: {order_data['order_id']}",
-        order_id=order_data['order_id'],
+        order_id=order_data["order_id"],
         recipient=settings.email_to,
-        is_error=False
+        is_error=False,
     )
 
+
 async def send_order_rejection(order_data: dict):
-    reason = order_data.get('reason', 'Motivo no especificado')
-    skus = [item['sku'] for item in order_data['items']]
+    reason = order_data.get("reason", "Motivo no especificado")
+    skus = [item["sku"] for item in order_data["items"]]
     product_names = await get_product_names(skus)
 
     items_with_names = []
-    for item in order_data['items']:
-        items_with_names.append({
-            "sku": item['sku'],
-            "name": product_names.get(item['sku'], item['sku']),
-            "qty": item['qty']
-        })
+    for item in order_data["items"]:
+        items_with_names.append(
+            {
+                "sku": item["sku"],
+                "name": product_names.get(item["sku"], item["sku"]),
+                "qty": item["qty"],
+            }
+        )
 
     html_body = generate_html(
         title="Orden no procesada",
-        customer=order_data['customer'],
+        customer=order_data["customer"],
         items=items_with_names,
         is_error=True,
-        reason=reason
+        reason=reason,
     )
-    items_text = ', '.join([f"{item['name']} (x{item['qty']})" for item in items_with_names])
+    items_text = ", ".join(
+        [f"{item['name']} (x{item['qty']})" for item in items_with_names]
+    )
     plain_body = f"ID: {order_data['order_id']}\nCliente: {order_data['customer']}\nArtículos: {items_text}\nMotivo del rechazo: {reason}"
 
     await send_email(
         plain_body=plain_body,
         html_body=html_body,
         subject=f"Orden rechazada: {order_data['order_id']}",
-        order_id=order_data['order_id'],
+        order_id=order_data["order_id"],
         recipient=settings.email_to,
         is_error=True,
-        reason=reason
+        reason=reason,
     )
 
-async def send_email(plain_body: str, html_body: str, subject: str, order_id: str, recipient: str, is_error: bool = False, reason: str = None):
+
+async def send_email(
+    plain_body: str,
+    html_body: str,
+    subject: str,
+    order_id: str,
+    recipient: str,
+    is_error: bool = False,
+    reason: str = None,
+):
     # Guardar en la base de notificaciones ANTES de enviar (o después, según prefieras)
     async with AsyncSessionLocal_notifications() as session:
         notification = Notification(
@@ -185,12 +210,20 @@ async def send_email(plain_body: str, html_body: str, subject: str, order_id: st
             order_id=order_id,
             recipient=recipient,
             status="failure" if is_error else "success",
-            reason=reason
+            reason=reason,
         )
         session.add(notification)
         await session.commit()
 
-    if not all([settings.smtp_host, settings.smtp_user, settings.smtp_password, settings.email_from, settings.email_to]):
+    if not all(
+        [
+            settings.smtp_host,
+            settings.smtp_user,
+            settings.smtp_password,
+            settings.email_from,
+            settings.email_to,
+        ]
+    ):
         logger.warning("Configuración de correo incompleta, no se enviará email")
         return
 
@@ -209,17 +242,20 @@ async def send_email(plain_body: str, html_body: str, subject: str, order_id: st
             username=settings.smtp_user,
             password=settings.smtp_password,
             use_tls=False,
-            start_tls=True
+            start_tls=True,
         )
         logger.info(f"Correo enviado: {subject}")
         # Guardar también en memoria (opcional)
-        notifications_sent.append({
-            "subject": subject,
-            "to": settings.email_to,
-            "timestamp": asyncio.get_event_loop().time()
-        })
+        notifications_sent.append(
+            {
+                "subject": subject,
+                "to": settings.email_to,
+                "timestamp": asyncio.get_event_loop().time(),
+            }
+        )
     except Exception as e:
         logger.error(f"Error enviando correo: {e}")
+
 
 async def process_order(message: aio_pika.IncomingMessage):
     async with message.process():
@@ -229,10 +265,13 @@ async def process_order(message: aio_pika.IncomingMessage):
             logger.info(f"Procesando confirmación para orden {order_data['order_id']}")
             await send_order_confirmation(order_data)
         elif routing_key == "order.error":
-            logger.info(f"Procesando rechazo para orden {order_data['order_id']}: {order_data.get('reason')}")
+            logger.info(
+                f"Procesando rechazo para orden {order_data['order_id']}: {order_data.get('reason')}"
+            )
             await send_order_rejection(order_data)
         else:
             logger.warning(f"Routing key desconocido: {routing_key}")
+
 
 async def rabbitmq_consumer():
     while True:
@@ -240,8 +279,12 @@ async def rabbitmq_consumer():
             connection = await aio_pika.connect_robust(settings.rabbitmq_url)
             async with connection:
                 channel = await connection.channel()
-                exchange = await channel.declare_exchange("orders", aio_pika.ExchangeType.TOPIC, durable=True)
-                queue = await channel.declare_queue("notification.order.events", durable=True)
+                exchange = await channel.declare_exchange(
+                    "orders", aio_pika.ExchangeType.TOPIC, durable=True
+                )
+                queue = await channel.declare_queue(
+                    "notification.order.events", durable=True
+                )
                 await queue.bind(exchange, routing_key="order.created")
                 await queue.bind(exchange, routing_key="order.error")
                 await queue.consume(process_order)
@@ -254,8 +297,10 @@ async def rabbitmq_consumer():
             logger.exception(f"Error inesperado: {e}")
             await asyncio.sleep(5)
 
+
 def start_consumer():
     asyncio.run(rabbitmq_consumer())
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -265,6 +310,7 @@ async def startup_event():
     thread = threading.Thread(target=start_consumer, daemon=True)
     thread.start()
     logger.info("Consumidor de RabbitMQ iniciado en segundo plano")
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8004)

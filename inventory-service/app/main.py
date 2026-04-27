@@ -18,33 +18,35 @@ AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 app = FastAPI(title="Inventory Service")
 
+
 @app.get("/stock")
 async def get_stock():
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(Product))
         products = result.scalars().all()
         # Devolver una lista con sku, nombre y stock
-        return [
-            {"sku": p.sku, "name": p.name, "stock": p.stock}
-            for p in products
-        ]
+        return [{"sku": p.sku, "name": p.name, "stock": p.stock} for p in products]
+
 
 @app.get("/health")
 async def health():
     return {"status": "ok"}
 
+
 async def process_order(message: aio_pika.IncomingMessage):
     async with message.process():
         order_data = json.loads(message.body.decode())
-        order_id = order_data['order_id']
-        items = order_data['items']
+        order_id = order_data["order_id"]
+        items = order_data["items"]
         logger.info(f"Procesando orden {order_id}")
         async with AsyncSessionLocal() as session:
             async with session.begin():
                 for item in items:
-                    sku = item['sku']
-                    qty = item['qty']
-                    result = await session.execute(select(Product).where(Product.sku == sku).with_for_update())
+                    sku = item["sku"]
+                    qty = item["qty"]
+                    result = await session.execute(
+                        select(Product).where(Product.sku == sku).with_for_update()
+                    )
                     product = result.scalar_one_or_none()
                     if product and product.stock >= qty:
                         product.stock -= qty
@@ -53,14 +55,19 @@ async def process_order(message: aio_pika.IncomingMessage):
                         logger.error(f"Stock insuficiente para {sku}")
         logger.info(f"Orden {order_id} procesada")
 
+
 async def consumer():
     while True:
         try:
             connection = await aio_pika.connect_robust(settings.rabbitmq_url)
             async with connection:
                 channel = await connection.channel()
-                exchange = await channel.declare_exchange("orders", aio_pika.ExchangeType.TOPIC, durable=True)
-                queue = await channel.declare_queue("inventory.order.created", durable=True)
+                exchange = await channel.declare_exchange(
+                    "orders", aio_pika.ExchangeType.TOPIC, durable=True
+                )
+                queue = await channel.declare_queue(
+                    "inventory.order.created", durable=True
+                )
                 await queue.bind(exchange, routing_key="order.created")
                 await queue.consume(process_order)
                 logger.info("Esperando mensajes...")
@@ -69,11 +76,13 @@ async def consumer():
             logger.error(f"Error: {e}. Reintentando en 5s")
             await asyncio.sleep(5)
 
+
 @app.on_event("startup")
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)  # Crear tablas si no existen
     asyncio.create_task(consumer())
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8002)
