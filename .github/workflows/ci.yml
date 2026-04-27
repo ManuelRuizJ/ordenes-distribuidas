@@ -13,10 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        environment: [dev, staging]   # puedes añadir prod si quieres
-    env:
-      ENV_FILE: .env.${{ matrix.environment }}
-
+        environment: [dev, staging]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,48 +21,38 @@ jobs:
       - name: Create environment file
         run: |
           if [ "${{ matrix.environment }}" = "dev" ]; then
-            # Usa .env.example para desarrollo (sin secrets)
             cp .env.example .env.dev
-            # Añade variables específicas de desarrollo (opcional)
             echo "LOG_LEVEL=DEBUG" >> .env.dev
-          elif [ "${{ matrix.environment }}" = "staging" ]; then
-            # Genera .env.staging a partir de secrets
-            cat > .env.staging <<EOF
-            POSTGRES_USER=orders_stg
-            POSTGRES_PASSWORD=${{ secrets.STAGING_POSTGRES_PASSWORD }}
-            POSTGRES_DB=orders_stagging
-            DATABASE_URL=postgresql+asyncpg://orders_stg:${{ secrets.STAGING_POSTGRES_PASSWORD }}@postgres:5432/orders_stagging
-            REDIS_URL=redis://redis:6379/0
-            WRITER_SERVICE_URL=http://writer-service:8001
-            RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-            WRITER_TIMEOUT_SECONDS=1.0
-            WRITER_MAX_RETRIES=1
-            SMTP_HOST=smtp.gmail.com
-            SMTP_PORT=587
-            SMTP_USER=jeshua0423@gmail.com
-            SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
-            EMAIL_FROM=jeshua0423@gmail.com
-            EMAIL_TO=jeshua0423@gmail.com
-            NOTIFICATIONS_DB_USER=notifications_stg
-            NOTIFICATIONS_DB_NAME=notifications_stg_db
-            NOTIFICATIONS_DATABASE_URL=postgresql+asyncpg://notifications_stg:${{ secrets.STAGING_POSTGRES_PASSWORD }}@postgres-notification:5432/notifications_stg_db
-            LOG_LEVEL=INFO
-            JWT_SECRET_KEY=${{ secrets.STAGING_JWT_SECRET_KEY }}
-            JWT_ALGORITHM=HS256
-            ACCESS_TOKEN_EXPIRE_MINUTES=30
-            REFRESH_TOKEN_EXPIRE_DAYS=2
-            AUTH_DB_USER=auth_user
-            AUTH_DB_PASSWORD=${{ secrets.STAGING_AUTH_DB_PASSWORD }}
-            AUTH_DB_NAME=auth_db
-            AUTH_DATABASE_URL=postgresql+asyncpg://auth_user:${{ secrets.STAGING_AUTH_DB_PASSWORD }}@postgres-users:5432/auth_db
-            EOF
-          elif [ "${{ matrix.environment }}" = "prod" ]; then
-            # Similar para producción (con secrets PROD_*)
-            cat > .env.prod <<EOF
-            
-            EOF
+          else
+            # staging
+            echo "POSTGRES_USER=orders_stg" > .env.staging
+            echo "POSTGRES_PASSWORD=${{ secrets.STAGING_POSTGRES_PASSWORD }}" >> .env.staging
+            echo "POSTGRES_DB=orders_stagging" >> .env.staging
+            echo "DATABASE_URL=postgresql+asyncpg://orders_stg:${{ secrets.STAGING_POSTGRES_PASSWORD }}@postgres:5432/orders_stagging" >> .env.staging
+            echo "REDIS_URL=redis://redis:6379/0" >> .env.staging
+            echo "WRITER_SERVICE_URL=http://writer-service:8001" >> .env.staging
+            echo "RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/" >> .env.staging
+            echo "WRITER_TIMEOUT_SECONDS=1.0" >> .env.staging
+            echo "WRITER_MAX_RETRIES=1" >> .env.staging
+            echo "SMTP_HOST=smtp.gmail.com" >> .env.staging
+            echo "SMTP_PORT=587" >> .env.staging
+            echo "SMTP_USER=jeshua0423@gmail.com" >> .env.staging
+            echo "SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}" >> .env.staging
+            echo "EMAIL_FROM=jeshua0423@gmail.com" >> .env.staging
+            echo "EMAIL_TO=jeshua0423@gmail.com" >> .env.staging
+            echo "NOTIFICATIONS_DB_USER=notifications_stg" >> .env.staging
+            echo "NOTIFICATIONS_DB_NAME=notifications_stg_db" >> .env.staging
+            echo "NOTIFICATIONS_DATABASE_URL=postgresql+asyncpg://notifications_stg:${{ secrets.STAGING_POSTGRES_PASSWORD }}@postgres-notification:5432/notifications_stg_db" >> .env.staging
+            echo "LOG_LEVEL=INFO" >> .env.staging
+            echo "JWT_SECRET_KEY=${{ secrets.STAGING_JWT_SECRET_KEY }}" >> .env.staging
+            echo "JWT_ALGORITHM=HS256" >> .env.staging
+            echo "ACCESS_TOKEN_EXPIRE_MINUTES=30" >> .env.staging
+            echo "REFRESH_TOKEN_EXPIRE_DAYS=2" >> .env.staging
+            echo "AUTH_DB_USER=auth_user" >> .env.staging
+            echo "AUTH_DB_PASSWORD=${{ secrets.STAGING_AUTH_DB_PASSWORD }}" >> .env.staging
+            echo "AUTH_DB_NAME=auth_db" >> .env.staging
+            echo "AUTH_DATABASE_URL=postgresql+asyncpg://auth_user:${{ secrets.STAGING_AUTH_DB_PASSWORD }}@postgres-users:5432/auth_db" >> .env.staging
           fi
-          # Copiar como .env para que docker compose lo use
           cp .env.${{ matrix.environment }} .env
 
       - name: Build services
@@ -75,7 +62,7 @@ jobs:
         run: docker compose up -d
 
       - name: Wait for services
-        run: sleep 30
+        run: sleep 60
 
       - name: Run integration tests
         run: |
@@ -84,7 +71,7 @@ jobs:
 
       - name: Show logs on failure
         if: failure()
-        run: docker compose logs --tail=100
+        run: docker compose logs --tail=200
 
       - name: Cleanup
         if: always()
