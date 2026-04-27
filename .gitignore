@@ -15,4 +15,9 @@ descargas_*/
 .env.staging
 
 # vscode
+.vscode/
 
+
+*.log
+*.pyc
+docker-compose.override.yml
