@@ -1,3 +1,4 @@
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -5,10 +6,28 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
+      interval: 5s
+      retries: 5
+
+  postgres-notification:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${NOTIFICATIONS_DB_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${NOTIFICATIONS_DB_NAME}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_notification_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NOTIFICATIONS_DB_USER} -d ${NOTIFICATIONS_DB_NAME}"]
+      interval: 5s
       retries: 5
 
   postgres-users:
@@ -17,107 +36,102 @@ services:
       POSTGRES_USER: ${AUTH_DB_USER}
       POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
       POSTGRES_DB: ${AUTH_DB_NAME}
+    ports:
+      - "5434:5432"
+    volumes:
+      - pg_users_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER} -d ${AUTH_DB_NAME}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  postgres-notification:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: ${NOTIFICATIONS_DB_USER}
-      POSTGRES_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD:-orders_pass}
-      POSTGRES_DB: ${NOTIFICATIONS_DB_NAME}
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${NOTIFICATIONS_DB_USER} -d ${NOTIFICATIONS_DB_NAME}"]
-      interval: 10s
-      timeout: 5s
+      interval: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
+    ports:
+      - "6379:6379"
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
       retries: 5
 
   api-gateway:
     build: ./api-gateway
     ports:
       - "8000:8000"
-    environment:
-      REDIS_URL: ${REDIS_URL}
-      WRITER_SERVICE_URL: ${WRITER_SERVICE_URL}
-      WRITER_TIMEOUT_SECONDS: ${WRITER_TIMEOUT_SECONDS}
-      WRITER_MAX_RETRIES: ${WRITER_MAX_RETRIES}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      JWT_ALGORITHM: ${JWT_ALGORITHM}
+    env_file: .env
     depends_on:
-      - writer-service
-      - redis
+      redis:
+        condition: service_healthy
+      writer-service:
+        condition: service_started
 
   writer-service:
     build: ./writer-service
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
-      RABBITMQ_URL: ${RABBITMQ_URL}
-      REDIS_URL: ${REDIS_URL}
+    ports:
+      - "8001:8001"
+    env_file: .env
     depends_on:
-      - postgres
-      - rabbitmq
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   inventory-service:
     build: ./inventory-service
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
-      RABBITMQ_URL: ${RABBITMQ_URL}
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    env_file: .env
     depends_on:
-      - postgres
-      - rabbitmq
-
-  notification-service:
-    build: ./notification-service
-    environment:
-      NOTIFICATIONS_DATABASE_URL: ${NOTIFICATIONS_DATABASE_URL}
-      RABBITMQ_URL: ${RABBITMQ_URL}
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASSWORD: ${SMTP_PASSWORD}
-      EMAIL_FROM: ${EMAIL_FROM}
-      EMAIL_TO: ${EMAIL_TO}
-    depends_on:
-      - postgres-notification
       - rabbitmq
 
   analytics-service:
     build: ./analytics-service
-    environment:
-      RABBITMQ_URL: ${RABBITMQ_URL}
+    ports:
+      - "8003:8003"
+    env_file: .env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  notification-service:
+    build: ./notification-service
+    restart: unless-stopped
+    ports:
+      - "8004:8004"
+    env_file: .env
     depends_on:
       - rabbitmq
+      - postgres-notification
 
   auth_service:
     build: ./auth-service
     ports:
       - "8005:8005"
-    environment:
-      AUTH_DATABASE_URL: ${AUTH_DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      JWT_ALGORITHM: ${JWT_ALGORITHM}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
-      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS}
+    env_file: .env
     depends_on:
-      - postgres-users
-      - redis
+      postgres-users:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
-networks:
-  default:
-    driver: bridge
+volumes:
+  pg_data:
+  pg_notification_data:
+  pg_users_data:
