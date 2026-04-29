@@ -79,8 +79,25 @@ jobs:
         if: always()
         run: docker compose down -v
 
-      - name: Linter check
-        run: |
-          echo "Ejecutando linters..."
-          pip install ruff
-          ruff check .
+
+  # rechazar si ruff no esta correcto
+  check-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Run ruff check
+        run: ruff check .
+      
+      - name: Run ruff format check
+        run: ruff format --check .
