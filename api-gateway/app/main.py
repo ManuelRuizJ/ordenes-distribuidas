@@ -72,7 +72,8 @@ async def get_order_status(order_id: str):
     redis_key = f"order:{order_id}"
     data = await redis_client.hgetall(redis_key)
     logger.info(f"Redis data for {order_id}: {data}")  # <-- línea añadida
-    if not data: return Response(status_code=404, content="Order not found")
+    if not data: 
+        return Response(status_code=404, content="Order not found")
     response_data = {
         "order_id": order_id,
         "status": data.get("status", "UNKNOWN"),
